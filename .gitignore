@@ -1,0 +1,31 @@
+# --- secrets, never commit these ---
+.env
+.env.*
+!.env.example
+*.pem
+*.keystore
+*.jks
+
+# --- backend ---
+backend/app.db
+backend/__pycache__/
+backend/**/__pycache__/
+backend/venv/
+backend/.venv/
+*.pyc
+
+# --- app (React Native) ---
+app/node_modules/
+app/android/.gradle/
+app/android/app/build/
+app/android/build/
+app/android/local.properties
+app/ios/Pods/
+app/ios/build/
+app/*.log
+app/.bundle/
+
+# --- editor/OS noise ---
+.DS_Store
+.idea/
+.vscode/
