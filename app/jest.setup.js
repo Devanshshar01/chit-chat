@@ -69,10 +69,3 @@ jest.mock('uuid', () => ({
   v4: () => '00000000-0000-4000-8000-000000000000',
 }));
 
-jest.mock('libsodium-wrappers', () => ({
-  ready: Promise.resolve(),
-  crypto_sign_keypair: jest.fn(),
-  crypto_box_keypair: jest.fn(),
-  to_base64: jest.fn(() => ''),
-  from_base64: jest.fn(() => new Uint8Array()),
-}));
