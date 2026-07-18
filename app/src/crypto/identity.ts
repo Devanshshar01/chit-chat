@@ -9,16 +9,16 @@
  * into the OS keystore (Keychain on iOS, Keystore-backed on Android via
  * react-native-keychain) and are never sent to the API or logged.
  *
- * Dependencies (add to the RN app, not yet installed anywhere - this is
- * step 3's client half, written against library APIs but not yet run
- * against a real RN bundler in this session):
- *   npm install libsodium-wrappers react-native-keychain
- *
- * libsodium-wrappers needs its WASM ready() awaited before use - that's
- * why every exported function here is async.
+ * Uses tweetnacl (pure JS) rather than libsodium-wrappers: Hermes has no
+ * WebAssembly, so libsodium's WASM build cannot run on-device. tweetnacl
+ * produces the same Ed25519/X25519 key formats (64-byte signing secret
+ * key, 32-byte public keys, 64-byte detached signatures) that the backend
+ * verifies in app/crypto.py.
  */
-import sodium from "libsodium-wrappers";
+import nacl from "tweetnacl";
 import * as Keychain from "react-native-keychain";
+
+import { toBase64 } from "./encoding";
 
 const KEYCHAIN_SERVICE = "unnamed-chat.identity";
 
@@ -33,11 +33,6 @@ interface StoredPrivateKeys {
   prekeySecretKey: string;   // base64
 }
 
-async function ready(): Promise<typeof sodium> {
-  await sodium.ready;
-  return sodium;
-}
-
 /**
  * Generates a fresh identity + prekey pair, stores the private halves in
  * the OS keystore, and returns the public halves ready to PUT to
@@ -45,20 +40,18 @@ async function ready(): Promise<typeof sodium> {
  * runs after login - not on every launch.
  */
 export async function generateAndStoreIdentity(): Promise<PublicKeyBundle> {
-  const s = await ready();
-
-  const identityKeyPair = s.crypto_sign_keypair();       // Ed25519
-  const prekeyPair = s.crypto_box_keypair();              // X25519
+  const identityKeyPair = nacl.sign.keyPair();  // Ed25519
+  const prekeyPair = nacl.box.keyPair();        // X25519
 
   // sign the prekey's public bytes with the identity secret key
-  const signature = s.crypto_sign_detached(
+  const signature = nacl.sign.detached(
     prekeyPair.publicKey,
-    identityKeyPair.privateKey
+    identityKeyPair.secretKey
   );
 
   const toStore: StoredPrivateKeys = {
-    identitySecretKey: s.to_base64(identityKeyPair.privateKey),
-    prekeySecretKey: s.to_base64(prekeyPair.privateKey),
+    identitySecretKey: toBase64(identityKeyPair.secretKey),
+    prekeySecretKey: toBase64(prekeyPair.secretKey),
   };
 
   await Keychain.setInternetCredentials(
@@ -68,9 +61,9 @@ export async function generateAndStoreIdentity(): Promise<PublicKeyBundle> {
   );
 
   return {
-    identityKeyPublic: s.to_base64(identityKeyPair.publicKey),
-    signedPrekeyPublic: s.to_base64(prekeyPair.publicKey),
-    prekeySignature: s.to_base64(signature),
+    identityKeyPublic: toBase64(identityKeyPair.publicKey),
+    signedPrekeyPublic: toBase64(prekeyPair.publicKey),
+    prekeySignature: toBase64(signature),
   };
 }
 

@@ -10,7 +10,7 @@
  * video, not just a photo.
  */
 import RNFS from "react-native-fs";
-import sodium from "libsodium-wrappers";
+import { fromBase64 } from "../crypto/encoding";
 
 import { initiateUpload, completeUpload, type MediaMetadata } from "../api/client";
 import { compressForUpload } from "./compress";
@@ -22,8 +22,7 @@ export interface UploadProgress {
 
 async function readChunkAsBytes(path: string, position: number, length: number): Promise<Uint8Array> {
   const base64Chunk = await RNFS.read(path, length, position, "base64");
-  await sodium.ready;
-  return sodium.from_base64(base64Chunk);
+  return fromBase64(base64Chunk);
 }
 
 /**

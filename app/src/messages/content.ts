@@ -7,7 +7,7 @@
  * When real encryption lands, this JSON is what gets encrypted - nothing
  * about this schema needs to change, just what wraps it before sending.
  */
-import sodium from "libsodium-wrappers";
+import { toBase64, fromBase64, utf8Encode, utf8Decode } from "../crypto/encoding";
 
 export type MessageContent =
   | { type: "text"; text: string }
@@ -23,14 +23,12 @@ export type MessageContent =
     };
 
 export async function encodeContent(content: MessageContent): Promise<string> {
-  await sodium.ready;
-  return sodium.to_base64(sodium.from_string(JSON.stringify(content)));
+  return toBase64(utf8Encode(JSON.stringify(content)));
 }
 
 export async function decodeContent(base64: string): Promise<MessageContent> {
-  await sodium.ready;
   try {
-    const json = sodium.to_string(sodium.from_base64(base64));
+    const json = utf8Decode(fromBase64(base64));
     const parsed = JSON.parse(json);
     if (parsed && typeof parsed === "object" && "type" in parsed) {
       return parsed as MessageContent;
@@ -41,9 +39,8 @@ export async function decodeContent(base64: string): Promise<MessageContent> {
   // Messages sent before this schema existed (step 5's chat screen) are
   // just base64(plaintext) with no envelope - treat anything undecodable
   // as plain legacy text instead of crashing the render.
-  await sodium.ready;
   try {
-    return { type: "text", text: sodium.to_string(sodium.from_base64(base64)) };
+    return { type: "text", text: utf8Decode(fromBase64(base64)) };
   } catch {
     return { type: "text", text: "[unreadable message]" };
   }

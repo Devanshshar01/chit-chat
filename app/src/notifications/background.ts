@@ -6,9 +6,15 @@
 import messaging from '@react-native-firebase/messaging';
 import notifee, { EventType } from '@notifee/react-native';
 
-import { displayMessageNotification } from './push';
+import { displayMessageNotification, pushAvailable } from './push';
 
 export function registerBackgroundHandlers(): void {
+  if (!pushAvailable()) {
+    // no google-services.json in this build -> no [DEFAULT] Firebase app;
+    // touching messaging() would throw before the UI even mounts
+    return;
+  }
+
   // data-only FCM message arriving while the app is backgrounded/killed
   messaging().setBackgroundMessageHandler(async (remoteMessage) => {
     await displayMessageNotification(remoteMessage);

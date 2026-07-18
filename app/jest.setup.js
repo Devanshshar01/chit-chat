@@ -20,6 +20,11 @@ jest.mock('react-native-keychain', () => ({
   resetGenericPassword: jest.fn(() => Promise.resolve(true)),
 }));
 
+jest.mock('@react-native-firebase/app', () => ({
+  __esModule: true,
+  getApps: jest.fn(() => [{ name: '[DEFAULT]' }]),
+}));
+
 jest.mock('@react-native-firebase/messaging', () => {
   const messaging = () => ({
     requestPermission: jest.fn(() => Promise.resolve(1)),
@@ -64,10 +69,3 @@ jest.mock('uuid', () => ({
   v4: () => '00000000-0000-4000-8000-000000000000',
 }));
 
-jest.mock('libsodium-wrappers', () => ({
-  ready: Promise.resolve(),
-  crypto_sign_keypair: jest.fn(),
-  crypto_box_keypair: jest.fn(),
-  to_base64: jest.fn(() => ''),
-  from_base64: jest.fn(() => new Uint8Array()),
-}));
