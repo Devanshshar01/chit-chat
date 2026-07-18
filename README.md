@@ -12,7 +12,11 @@
 | 6 | Media pipeline (compression, chunked upload to R2, local caching + eviction) | **Backend fully tested end-to-end against a local mock S3 server** - both the small-file (single PUT) and large-file (multipart, 3 real chunks) paths verified byte-perfect round trip, plus edge cases (double-complete, complete-without-upload, missing media all correctly rejected). **Client (compression + chunked uploader + LRU cache) type-checks and bundles clean** - not run on a device, and compression/caching behavior specifically depends on native RNFS/compressor behavior this sandbox can't execute. |
 | 7 | Stickers, GIFs, link previews | **Link previews: backend fully tested** - real OG-tag fetch+parse verified against a live URL (github.com), caching verified, and SSRF protection verified against 4 real attack URLs (localhost, link-local metadata endpoint, private IP, internal port). **Stickers: built-in emoji pack, no external assets/licensing** - type-checks and bundles clean. **GIF search: written against Giphy's current documented API schema (checked their docs directly), but never executed** - `api.giphy.com` isn't reachable from this sandbox's network, so this is unverified by execution, same caveat as the RN native modules. Needs your own Giphy API key in `app/src/config.ts`. |
 | 8 | Presence + ticks (online/last-seen, sent/delivered/read state machine) | **Backend fully tested end-to-end**: presence broadcasts on connect/disconnect (verified live over two real WebSocket connections), REST presence lookup, read receipts (verified live push to the sender, plus offline catch-up via a new `/messages/sent-status` endpoint when the sender wasn't connected when the read happened), and a security check (a message's sender cannot mark their own sent message "read" - verified rejected). **Client (presence header, delivery ticks, mark-as-read-on-view) type-checks and bundles clean** - not run on a device. |
-| 9-13 | Push notifications, crash resilience, polish, APK build, calling | **Not started** |
+| 9 | Push notifications (FCM) | **Built.** Backend: device push-token endpoints, data-only FCM send on offline delivery, dead-token cleanup, token cleared on logout. Client: token register/refresh/unregister lifecycle, notifee channel + display for foreground/background/killed, popup suppressed when that chat is already open, tap opens the conversation. Backend paths smoke-tested live; FCM delivery itself needs your own Firebase project (see "Push notifications (step 9) setup") and a real device. |
+| 10 | Crash resilience | **Built.** Global JS error handlers + React error boundary, structured ring-buffer logging with a crash-reporter hook, API retry with exponential backoff + jitter (network/5xx/429 only), WebSocket heartbeat (ping/pong, 30s interval, 10s timeout -> forced reconnect on top of the existing backoff reconnect), Keychain-persisted sessions restored on startup with deduplicated refresh-token rotation, corrupted-storage handled as logged-out instead of a crash, persistent read-receipt queue (at-least-once, server side is idempotent). Verified by tsc/eslint/jest + live backend smoke tests. |
+| 11 | Polish & personalization | **Built.** Light/dark/system theme + font-size setting (persisted in SQLite, applied live), message search with match highlighting, starred messages + starred filter, delete-for-me (local tombstone), copy message, message info (sent/delivered/read timestamps), notification mute, connection/offline banner, full-screen image viewer, empty states, settings screen, FlatList render tuning. Not run on a device (same sandbox caveat as steps 5-8). |
+| 12 | Production APK prep | **Configured, not built here** (no Android SDK in this sandbox at the time of writing - see "Building the release APK"). Release signing via untracked `android/keystore.properties`, ProGuard/R8 + resource shrinking enabled with keep rules for quick-sqlite/keychain/firebase, `POST_NOTIFICATIONS` permission, notification icon, google-services plugin applied only when `google-services.json` exists, versionCode 2 / versionName 1.1.0. |
+| 13 | Calling | **Intentionally excluded.** |
 
 **Two real bugs found and fixed while building step 8, both worth knowing about:**
 1. Adding `last_seen_at` as a NOT NULL column would have broken the
@@ -139,9 +143,11 @@ npx react-native run-android   # needs an emulator or connected device
 npx react-native run-ios       # needs Xcode, macOS
 ```
 
-Point `app/src/api/client.ts`'s `API_BASE_URL` at wherever the backend is
+Point `API_BASE_URL` in `app/src/config.ts` at wherever the backend is
 actually reachable from your device/emulator (`http://10.0.2.2:8000` for
-the Android emulator talking to a host machine, not `localhost`).
+the Android emulator talking to a host machine, `http://<your-LAN-IP>:8000`
+for a physical phone on the same wifi, your deployed HTTPS URL in
+production - not `localhost`).
 
 `app/src/crypto/identity.ts` - on-device Ed25519 identity + X25519 prekey
 generation, stored via `react-native-keychain`.
@@ -195,6 +201,105 @@ peer's online/last-seen status in the header, marks incoming messages
 read the moment they're visible on screen, and renders sent/delivered/read
 ticks on outgoing messages. Not yet wired to the media pipeline (step 6) -
 that's attaching a photo/video from the chat screen, still open.
+
+## Push notifications (step 9) setup
+
+Push is optional on both ends - with nothing configured, the app still
+works exactly as before (offline recipients catch up via `/messages/sync`
+on next connect). To turn it on:
+
+1. Create a Firebase project at https://console.firebase.google.com
+   (free, no billing needed for FCM).
+2. **Backend key:** Project settings -> Service accounts -> Generate new
+   private key. Save the JSON outside the repo and set
+   `FIREBASE_CREDENTIALS_FILE=/path/to/service-account.json` in
+   `backend/.env`.
+3. **Android app config:** Project settings -> Your apps -> Add app ->
+   Android, package name `com.unnamedchat`. Download `google-services.json`
+   into `app/android/app/`. It's gitignored; the build applies the
+   google-services plugin only when the file exists.
+4. Rebuild the app. On login it requests notification permission
+   (Android 13+), registers its FCM token via `PUT /devices/me/push-token`,
+   re-registers on token rotation, and unregisters on logout.
+
+Design notes worth knowing:
+- The server only pushes when the recipient has **no live WebSocket**
+  (they'd get the message instantly otherwise).
+- Payloads are **data-only and content-free**: `{type, sender_username,
+  message_id}`. No message text ever transits FCM or a lock screen -
+  the client fetches the real payload through the normal sync path.
+- Unregistered/expired tokens reported by FCM are cleared from the
+  device row automatically.
+- A notification for the chat you're actively looking at (app
+  foregrounded) is suppressed - the socket already updated the UI.
+
+## Building the release APK (step 12)
+
+1. Generate a release keystore once (keep it safe forever - losing it
+   means you can never update the installed app):
+
+```bash
+keytool -genkeypair -v -keystore ~/unnamed-chat-release.keystore \
+  -alias unnamed-chat -keyalg RSA -keysize 2048 -validity 10000
+```
+
+2. Create `app/android/keystore.properties` (gitignored):
+
+```properties
+storeFile=/absolute/path/to/unnamed-chat-release.keystore
+storePassword=...
+keyAlias=unnamed-chat
+keyPassword=...
+```
+
+3. Build:
+
+```bash
+cd app/android
+./gradlew assembleRelease        # APK -> app/build/outputs/apk/release/app-release.apk
+# or ./gradlew bundleRelease     # AAB for Play Store
+```
+
+4. Install: `adb install -r app/build/outputs/apk/release/app-release.apk`
+   (updates in place as long as the signing key matches).
+
+Without `keystore.properties`, release builds fall back to the debug
+keystore so the build still runs locally - but that APK is not
+distributable. R8 minification + resource shrinking are on for release;
+ProGuard keep rules for quick-sqlite, keychain, firebase and notifee are
+in `app/android/app/proguard-rules.pro`. Before building, remember to set
+the production `API_BASE_URL` in `app/src/config.ts` (must be HTTPS for
+Android's default cleartext policy) and your `GIPHY_API_KEY`.
+
+## Deploying the backend
+
+Any host that runs Python works (Fly.io, Railway, a VPS):
+
+```bash
+pip install -r requirements.txt
+alembic upgrade head
+python -m app.seed        # once, with SEED_*_PASSCODE env vars set
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+Environment to set in production: `DATABASE_URL`, a real random
+`JWT_SECRET`, the four `R2_*` values (Cloudflare dashboard -> R2 ->
+Manage API tokens) for media, `FIREBASE_CREDENTIALS_FILE` for push.
+Put it behind HTTPS (Caddy/nginx or the platform's built-in TLS) - the
+app's WebSocket URL derives from `API_BASE_URL`, and both need TLS in
+production.
+
+### All the keys this app needs, in one list
+
+| Key | Where to get it | Where it goes |
+|---|---|---|
+| `JWT_SECRET` | generate: `python3 -c "import secrets;print(secrets.token_urlsafe(48))"` | `backend/.env` |
+| `SEED_DEVANSH_PASSCODE` / `SEED_SWARNIMA_PASSCODE` | choose them | env when running `python -m app.seed` |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` | Cloudflare dashboard -> R2 -> Manage API tokens | `backend/.env` |
+| Firebase service-account JSON | Firebase console -> Project settings -> Service accounts -> Generate new private key | file on the server, path in `FIREBASE_CREDENTIALS_FILE` |
+| `google-services.json` | Firebase console -> Project settings -> Your apps -> Android app | `app/android/app/` (gitignored) |
+| `GIPHY_API_KEY` | https://developers.giphy.com (free) | `app/src/config.ts` |
+| Release keystore | generate with `keytool` (above) | outside the repo, referenced by `app/android/keystore.properties` |
 
 ## Schema changes going forward
 

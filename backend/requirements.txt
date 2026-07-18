@@ -3,7 +3,7 @@ uvicorn[standard]==0.51.0
 sqlalchemy==2.0.51
 alembic==1.18.5
 pynacl==1.6.2
-pyjwt==2.7.0
+pyjwt==2.10.1
 passlib[argon2]==1.7.4
 python-multipart==0.0.32
 pydantic-settings==2.14.2
@@ -12,3 +12,4 @@ websockets==16.1
 boto3==1.43.50
 beautifulsoup4==4.14.3
 lxml==6.0.2
+firebase-admin==7.1.0

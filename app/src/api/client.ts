@@ -5,8 +5,7 @@
  * same network / an emulator with adb reverse.
  */
 import { PublicKeyBundle } from "../crypto/identity";
-
-const API_BASE_URL = "http://localhost:8000";
+import { API_BASE_URL } from "../config";
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string) {
@@ -45,6 +44,37 @@ export async function refreshTokens(refreshToken: string): Promise<TokenPair> {
     body: JSON.stringify({ refresh_token: refreshToken }),
   });
   return handle<TokenPair>(res);
+}
+
+export async function logout(accessToken: string, refreshToken: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/auth/logout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+  await handle(res);
+}
+
+// ---------- push tokens ----------
+
+/** Registers this device's FCM token; idempotent, safe to call on every launch and token rotation. */
+export async function registerPushToken(accessToken: string, pushToken: string, deviceName?: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/devices/me/push-token`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ push_token: pushToken, device_name: deviceName ?? null }),
+  });
+  await handle(res);
+}
+
+/** Removes this device's FCM token server-side - call on logout. */
+export async function unregisterPushToken(accessToken: string, pushToken: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/devices/me/push-token`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ push_token: pushToken }),
+  });
+  await handle(res);
 }
 
 export async function uploadKeyBundle(accessToken: string, bundle: PublicKeyBundle) {

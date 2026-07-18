@@ -10,6 +10,7 @@ from app.auth import decode_access_token, get_current_user
 from app.database import get_db, AsyncSessionLocal
 from app.models import User, Message
 from app.schemas import MessageAck, MessageSyncItem, SentMessageStatus
+from app.push import notify_new_message
 from app.utils import ensure_utc
 from app.ws_manager import manager
 
@@ -67,6 +68,12 @@ async def websocket_endpoint(ws: WebSocket, token: str = Query(...)):
         while True:
             raw = await ws.receive_json()
             envelope_type = raw.get("type")
+
+            if envelope_type == "ping":
+                # client-side heartbeat: proves the connection is actually
+                # alive end-to-end, not just open at the TCP level
+                await ws.send_json({"type": "pong"})
+                continue
 
             if envelope_type == "read":
                 await _handle_read_receipt(user_id, raw)
@@ -134,6 +141,12 @@ async def websocket_endpoint(ws: WebSocket, token: str = Query(...)):
                 if delivered and msg.delivered_at is None:
                     msg.delivered_at = datetime.now(timezone.utc)
                     await db.commit()
+
+                if not delivered:
+                    # recipient has no live socket - wake their device via
+                    # FCM instead. Content-free payload; they pull the
+                    # actual ciphertext through /messages/sync on wake.
+                    await notify_new_message(db, recipient.id, my_username, msg.id)
 
                 await ws.send_json({
                     "type": "ack",

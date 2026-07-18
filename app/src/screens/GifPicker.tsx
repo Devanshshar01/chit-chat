@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Pressable, FlatList, StyleSheet, Modal, Image, ActivityIndicator } from "react-native";
+import { Text, TextInput, Pressable, FlatList, StyleSheet, Modal, Image, ActivityIndicator } from "react-native";
 
 import { searchGifs, trendingGifs, type GifResult } from "../media/gifSearch";
 
@@ -47,7 +47,7 @@ export default function GifPicker({ visible, onSelect, onClose }: Props) {
             onChangeText={setQuery}
             onSubmitEditing={() => runSearch(query)}
           />
-          {loading && <ActivityIndicator color="#fff" style={{ marginTop: 12 }} />}
+          {loading && <ActivityIndicator color="#fff" style={styles.loading} />}
           {error && <Text style={styles.error}>{error}</Text>}
           <FlatList
             data={results}
@@ -75,6 +75,7 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
   sheet: { backgroundColor: "#151519", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, height: "70%" },
   title: { color: "#fff", fontSize: 16, fontWeight: "600", marginBottom: 12 },
+  loading: { marginTop: 12 },
   input: {
     borderWidth: 1, borderColor: "#333", borderRadius: 10, padding: 10,
     color: "#fff", backgroundColor: "#0b0b0f", marginBottom: 12,

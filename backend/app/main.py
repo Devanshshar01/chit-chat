@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.database import init_models
-from app.routers import auth, users, crypto_identity, messages, media, link_preview
+from app.routers import auth, users, crypto_identity, messages, media, link_preview, devices
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("app")
@@ -55,6 +55,7 @@ app.include_router(crypto_identity.router)
 app.include_router(messages.router)
 app.include_router(media.router)
 app.include_router(link_preview.router)
+app.include_router(devices.router)
 
 
 @app.on_event("startup")

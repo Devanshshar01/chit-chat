@@ -97,5 +97,12 @@ async def logout(
     stored = result.scalar_one_or_none()
     if stored:
         stored.revoked = True
+        # a logged-out device must stop receiving pushes for this account
+        device_result = await db.execute(
+            select(Device).where(Device.id == stored.device_id)
+        )
+        device = device_result.scalar_one_or_none()
+        if device:
+            device.push_token = None
         await db.commit()
     return {"ok": True}

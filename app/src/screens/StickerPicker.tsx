@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, Pressable, FlatList, StyleSheet, Modal } from "react-native";
+import { Text, Pressable, FlatList, StyleSheet, Modal } from "react-native";
 
 import { STICKER_PACK } from "../media/stickers";
 

@@ -35,6 +35,10 @@ local.properties
 !debug.keystore
 .kotlin/
 
+# Per-project Firebase config and release signing secrets - never commit
+android/app/google-services.json
+android/keystore.properties
+
 # node.js
 #
 node_modules/

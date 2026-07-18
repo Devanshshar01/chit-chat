@@ -31,6 +31,13 @@ class UserPublic(BaseModel):
         from_attributes = True
 
 
+# ---------- devices / push ----------
+
+class PushTokenRequest(BaseModel):
+    push_token: str
+    device_name: str | None = None
+
+
 # ---------- crypto identity ----------
 # Public keys travel as base64 over the wire; stored as raw bytes in the DB.
 
