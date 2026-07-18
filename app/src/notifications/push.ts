@@ -18,6 +18,7 @@
  * outbox's INSERT OR IGNORE on client_id - a push can never double-insert.
  */
 import { AppState } from 'react-native';
+import { getApps } from '@react-native-firebase/app';
 import messaging, {
   type FirebaseMessagingTypes,
 } from '@react-native-firebase/messaging';
@@ -37,6 +38,20 @@ const SETTING_MUTED = 'notifications.muted';
 // push for the conversation you're literally looking at refreshes the UI
 // (the socket does that) without also popping a notification.
 let activeChatPeer: string | null = null;
+
+/**
+ * Firebase only exists at runtime when the build included a
+ * google-services.json (the gradle plugin is conditional on it - see
+ * android/app/build.gradle). Without it there is no [DEFAULT] app and
+ * every messaging() call throws, so push is a clean no-op instead.
+ */
+export function pushAvailable(): boolean {
+  try {
+    return getApps().length > 0;
+  } catch {
+    return false;
+  }
+}
 
 export function setActiveChatPeer(username: string | null): void {
   activeChatPeer = username;
@@ -110,6 +125,11 @@ export interface PushManagerOptions {
  */
 export async function startPushNotifications(options: PushManagerOptions): Promise<() => void> {
   const { accessToken, onOpenConversation } = options;
+
+  if (!pushAvailable()) {
+    log.warn('push', 'Firebase not configured (no google-services.json) - push disabled');
+    return () => {};
+  }
 
   // Android 13+ needs runtime POST_NOTIFICATIONS consent; earlier
   // versions and iOS resolve through the same call.

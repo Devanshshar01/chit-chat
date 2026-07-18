@@ -20,6 +20,11 @@ jest.mock('react-native-keychain', () => ({
   resetGenericPassword: jest.fn(() => Promise.resolve(true)),
 }));
 
+jest.mock('@react-native-firebase/app', () => ({
+  __esModule: true,
+  getApps: jest.fn(() => [{ name: '[DEFAULT]' }]),
+}));
+
 jest.mock('@react-native-firebase/messaging', () => {
   const messaging = () => ({
     requestPermission: jest.fn(() => Promise.resolve(1)),
