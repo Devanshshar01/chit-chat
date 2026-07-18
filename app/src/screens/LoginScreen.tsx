@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 
-import { login } from '../api/client';
+import { login, type TokenPair } from '../api/client';
 import { generateAndStoreIdentity, hasStoredIdentity } from '../crypto/identity';
 import { uploadKeyBundle } from '../api/client';
+import { useTheme } from '../theme/ThemeContext';
+import type { ThemeColors } from '../theme/theme';
 
 interface Props {
-  onLoggedIn: (username: string, accessToken: string) => void;
+  onLoggedIn: (username: string, tokens: TokenPair) => void;
 }
 
 export default function LoginScreen({ onLoggedIn }: Props) {
@@ -14,6 +16,8 @@ export default function LoginScreen({ onLoggedIn }: Props) {
   const [passcode, setPasscode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const { colors, fontFactor } = useTheme();
+  const styles = useMemo(() => createStyles(colors, fontFactor), [colors, fontFactor]);
 
   const handleLogin = async () => {
     setError(null);
@@ -29,9 +33,9 @@ export default function LoginScreen({ onLoggedIn }: Props) {
         await uploadKeyBundle(tokens.access_token, bundle);
       }
 
-      onLoggedIn(username.trim().toLowerCase(), tokens.access_token);
-    } catch (e: any) {
-      setError(e?.message ?? 'login failed');
+      onLoggedIn(username.trim().toLowerCase(), tokens);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'login failed');
     } finally {
       setLoading(false);
     }
@@ -44,7 +48,7 @@ export default function LoginScreen({ onLoggedIn }: Props) {
       <TextInput
         style={styles.input}
         placeholder="username"
-        placeholderTextColor="#666"
+        placeholderTextColor={colors.textSecondary}
         autoCapitalize="none"
         value={username}
         onChangeText={setUsername}
@@ -52,7 +56,7 @@ export default function LoginScreen({ onLoggedIn }: Props) {
       <TextInput
         style={styles.input}
         placeholder="passcode"
-        placeholderTextColor="#666"
+        placeholderTextColor={colors.textSecondary}
         secureTextEntry
         value={passcode}
         onChangeText={setPasscode}
@@ -67,14 +71,20 @@ export default function LoginScreen({ onLoggedIn }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#0b0b0f' },
-  title: { fontSize: 28, fontWeight: '700', color: '#fff', marginBottom: 32, textAlign: 'center' },
-  input: {
-    borderWidth: 1, borderColor: '#333', borderRadius: 10, padding: 14,
-    marginBottom: 12, color: '#fff', backgroundColor: '#151519',
-  },
-  button: { backgroundColor: '#4f46e5', borderRadius: 10, padding: 14, alignItems: 'center', marginTop: 8 },
-  buttonText: { color: '#fff', fontWeight: '600' },
-  error: { color: '#f87171', marginBottom: 12, textAlign: 'center' },
-});
+function createStyles(colors: ThemeColors, fontFactor: number) {
+  return StyleSheet.create({
+    container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: colors.background },
+    title: {
+      fontSize: 28 * fontFactor, fontWeight: '700', color: colors.textPrimary,
+      marginBottom: 32, textAlign: 'center',
+    },
+    input: {
+      borderWidth: 1, borderColor: colors.surfaceBorder, borderRadius: 10, padding: 14,
+      marginBottom: 12, color: colors.textPrimary, backgroundColor: colors.surface,
+      fontSize: 15 * fontFactor,
+    },
+    button: { backgroundColor: colors.accent, borderRadius: 10, padding: 14, alignItems: 'center', marginTop: 8 },
+    buttonText: { color: '#fff', fontWeight: '600', fontSize: 15 * fontFactor },
+    error: { color: colors.danger, marginBottom: 12, textAlign: 'center', fontSize: 14 * fontFactor },
+  });
+}

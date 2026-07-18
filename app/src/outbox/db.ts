@@ -56,6 +56,25 @@ export function getDb(): QuickSQLiteConnection {
   `);
 
   db.execute(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+  `);
+
+  db.execute(`
+    CREATE TABLE IF NOT EXISTS read_receipt_queue (
+      message_id TEXT PRIMARY KEY,
+      queued_at TEXT NOT NULL
+    );
+  `);
+
+  // Additive columns on an existing table: guarded ALTERs so upgrading
+  // an installed app keeps its data (SQLite has no ADD COLUMN IF NOT EXISTS).
+  ensureColumn(db, 'messages', 'starred', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn(db, 'messages', 'deleted_locally', 'INTEGER NOT NULL DEFAULT 0');
+
+  db.execute(`
     CREATE TABLE IF NOT EXISTS media_cache (
       media_id TEXT PRIMARY KEY,
       local_path TEXT NOT NULL,
@@ -65,6 +84,53 @@ export function getDb(): QuickSQLiteConnection {
   `);
 
   return db;
+}
+
+function ensureColumn(conn: QuickSQLiteConnection, table: string, column: string, definition: string): void {
+  const info = conn.execute(`PRAGMA table_info(${table})`);
+  const columns = (info.rows?._array ?? []).map((row) => row.name as string);
+  if (!columns.includes(column)) {
+    conn.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+
+// ---------- settings (theme, font size, notification prefs, ...) ----------
+
+export function getSetting(key: string): string | null {
+  const result = getDb().execute('SELECT value FROM settings WHERE key = ?', [key]);
+  const row = result.rows?._array[0];
+  return row ? (row.value as string) : null;
+}
+
+export function setSetting(key: string, value: string): void {
+  getDb().execute(
+    `INSERT INTO settings (key, value) VALUES (?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [key, value]
+  );
+}
+
+// ---------- read receipt queue (crash-safe at-least-once delivery) ----------
+
+export function queueReadReceipts(messageIds: string[]): void {
+  const now = new Date().toISOString();
+  for (const id of messageIds) {
+    getDb().execute(
+      'INSERT OR IGNORE INTO read_receipt_queue (message_id, queued_at) VALUES (?, ?)',
+      [id, now]
+    );
+  }
+}
+
+export function getQueuedReadReceipts(): string[] {
+  const result = getDb().execute('SELECT message_id FROM read_receipt_queue ORDER BY queued_at ASC');
+  return (result.rows?._array ?? []).map((row) => row.message_id as string);
+}
+
+export function clearQueuedReadReceipts(messageIds: string[]): void {
+  if (messageIds.length === 0) return;
+  const placeholders = messageIds.map(() => '?').join(',');
+  getDb().execute(`DELETE FROM read_receipt_queue WHERE message_id IN (${placeholders})`, messageIds);
 }
 
 export function getLastSyncCursor(): string | null {
@@ -105,10 +171,23 @@ export interface LocalMessage {
   delivered_at: string | null;
   read_at: string | null;
   read_receipt_sent: number;
+  starred: number;
+  deleted_locally: number;
 }
 
 /** Only two users exist right now, so "all messages" IS the one conversation. */
 export function getAllMessages(): LocalMessage[] {
-  const result = getDb().execute(`SELECT * FROM messages ORDER BY created_at ASC`);
+  const result = getDb().execute(
+    `SELECT * FROM messages WHERE deleted_locally = 0 ORDER BY created_at ASC`
+  );
   return (result.rows?._array as LocalMessage[]) ?? [];
+}
+
+export function setMessageStarred(messageId: string, starred: boolean): void {
+  getDb().execute('UPDATE messages SET starred = ? WHERE id = ?', [starred ? 1 : 0, messageId]);
+}
+
+/** "Delete for me": hides the message locally; the peer's copy is untouched. */
+export function deleteMessageLocally(messageId: string): void {
+  getDb().execute('UPDATE messages SET deleted_locally = 1 WHERE id = ?', [messageId]);
 }

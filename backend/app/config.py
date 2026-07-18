@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     # (e.g. moto) instead of real R2. Leave unset in production.
     s3_endpoint_url_override: str = ""
 
+    # Path to a Firebase service-account JSON for FCM push notifications
+    # (Firebase console -> Project settings -> Service accounts). Leave
+    # unset to disable push - offline recipients still catch up via
+    # /messages/sync on their next connect.
+    firebase_credentials_file: str = ""
+
     # Multipart upload threshold/part size. S3-compatible APIs require
     # every part except the last to be >= 5MiB.
     multipart_threshold_bytes: int = 8 * 1024 * 1024   # 8 MiB

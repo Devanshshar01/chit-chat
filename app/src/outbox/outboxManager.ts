@@ -30,19 +30,26 @@ import { v4 as uuidv4 } from "uuid";
 import {
   getDb, getLastSyncCursor, setLastSyncCursor,
   getLastSentStatusCursor, setLastSentStatusCursor,
+  queueReadReceipts, getQueuedReadReceipts, clearQueuedReadReceipts,
 } from "./db";
 import { wsUrl, syncMessages, syncSentStatus, type SyncedMessage } from "../api/client";
+import { withRetry } from "../api/retry";
+import { log } from "../logging/logger";
 
 const MAX_BACKOFF_MS = 30_000;
+const HEARTBEAT_INTERVAL_MS = 30_000;
+const HEARTBEAT_TIMEOUT_MS = 10_000;
 
 type IncomingHandler = (msg: SyncedMessage) => void;
 type StatusChangeHandler = () => void; // fired whenever delivered_at/read_at changes - UI just re-reads from SQLite
 type PresenceHandler = (username: string, isOnline: boolean, lastSeenAt: string) => void;
+type ConnectionChangeHandler = (connected: boolean) => void;
 
 interface Handlers {
   onIncoming: IncomingHandler;
   onStatusChange?: StatusChangeHandler;
   onPresence?: PresenceHandler;
+  onConnectionChange?: ConnectionChangeHandler;
 }
 
 export class OutboxManager {
@@ -50,6 +57,8 @@ export class OutboxManager {
   private accessToken: string;
   private reconnectAttempt = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private heartbeatTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
   private handlers: Handlers;
 
@@ -67,8 +76,27 @@ export class OutboxManager {
   stop(): void {
     this.stopped = true;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
+    this.stopHeartbeat();
     this.ws?.close();
     this.ws = null;
+  }
+
+  /** True if the WebSocket is currently open. */
+  isConnected(): boolean {
+    return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
+  }
+
+  /**
+   * Swaps in a freshly-refreshed access token and reconnects with it -
+   * the old socket was authenticated with the old token.
+   */
+  updateAccessToken(accessToken: string): void {
+    if (accessToken === this.accessToken) return;
+    this.accessToken = accessToken;
+    if (!this.stopped) {
+      this.ws?.close(); // onclose triggers reconnect with the new token
+    }
   }
 
   /** Queues a message for sending. Returns immediately - this is the whole point. */
@@ -108,14 +136,21 @@ export class OutboxManager {
       messageIds
     );
 
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ type: "read", message_ids: messageIds }));
-    }
-    // if the socket's down, the read state is still recorded locally as
-    // "sent" (read_receipt_sent=1) - there's currently no separate retry
-    // queue for read receipts specifically. Good enough for a 2-user app;
-    // a stricter version would track this the same way outbox rows are
-    // tracked, and retry on reconnect.
+    // Crash-safe at-least-once: receipts are queued in SQLite first and
+    // only removed once actually written to an open socket. If the app
+    // dies or the socket is down, flushReadReceipts() retries them on
+    // the next connect. The backend is idempotent (re-marking an
+    // already-read message is a no-op), so duplicates are harmless.
+    queueReadReceipts(messageIds);
+    this.flushReadReceipts();
+  }
+
+  private flushReadReceipts(): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    const queued = getQueuedReadReceipts();
+    if (queued.length === 0) return;
+    this.ws.send(JSON.stringify({ type: "read", message_ids: queued }));
+    clearQueuedReadReceipts(queued);
   }
 
   private connect(): void {
@@ -125,9 +160,12 @@ export class OutboxManager {
 
     this.ws.onopen = () => {
       this.reconnectAttempt = 0;
+      this.handlers.onConnectionChange?.(true);
+      this.startHeartbeat();
       this.flush();
-      this.catchUpViaSync();
-      this.catchUpSentStatus();
+      this.flushReadReceipts();
+      this.catchUpViaSync().catch(() => {});
+      this.catchUpSentStatus().catch(() => {});
     };
 
     this.ws.onmessage = (event: WebSocketMessageEvent) => {
@@ -178,6 +216,15 @@ export class OutboxManager {
           return;
         }
 
+        case "pong": {
+          // heartbeat answered - the connection is alive end-to-end
+          if (this.heartbeatTimeoutTimer) {
+            clearTimeout(this.heartbeatTimeoutTimer);
+            this.heartbeatTimeoutTimer = null;
+          }
+          return;
+        }
+
         default:
           return; // unknown envelope type - ignore rather than crash
       }
@@ -189,8 +236,35 @@ export class OutboxManager {
 
     this.ws.onclose = () => {
       this.ws = null;
+      this.stopHeartbeat();
+      this.handlers.onConnectionChange?.(false);
       if (!this.stopped) this.scheduleReconnect();
     };
+  }
+
+  /**
+   * Periodic ping/pong over the socket. A socket can look OPEN long
+   * after the network under it died (server restart, dropped wifi with
+   * no FIN) - if a ping goes unanswered, force-close so the normal
+   * reconnect-with-backoff path takes over.
+   */
+  private startHeartbeat(): void {
+    this.stopHeartbeat();
+    this.heartbeatTimer = setInterval(() => {
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+      this.ws.send(JSON.stringify({ type: "ping" }));
+      this.heartbeatTimeoutTimer = setTimeout(() => {
+        log.warn("outbox", "heartbeat timed out - forcing reconnect");
+        this.ws?.close();
+      }, HEARTBEAT_TIMEOUT_MS);
+    }, HEARTBEAT_INTERVAL_MS);
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer = null;
+    if (this.heartbeatTimeoutTimer) clearTimeout(this.heartbeatTimeoutTimer);
+    this.heartbeatTimeoutTimer = null;
   }
 
   private scheduleReconnect(): void {
@@ -222,8 +296,16 @@ export class OutboxManager {
 
   /** REST fallback so a missed live push (incoming messages) still arrives once we're back. */
   private async catchUpViaSync(): Promise<void> {
-    const since = getLastSyncCursor() ?? undefined;
-    const items = await syncMessages(this.accessToken, since);
+    let items: SyncedMessage[];
+    try {
+      const since = getLastSyncCursor() ?? undefined;
+      items = await withRetry("sync", () => syncMessages(this.accessToken, since));
+    } catch (error) {
+      // sync failing must never take the socket down with it - the next
+      // reconnect (or the next live push) covers whatever was missed
+      log.warn("outbox", "message sync failed", { error: error instanceof Error ? error.message : String(error) });
+      return;
+    }
 
     for (const item of items) {
       getDb().execute(
@@ -255,8 +337,14 @@ export class OutboxManager {
    * nothing outstanding ever ages out.
    */
   private async catchUpSentStatus(): Promise<void> {
-    const since = getLastSentStatusCursor() ?? undefined;
-    const items = await syncSentStatus(this.accessToken, since);
+    let items: Awaited<ReturnType<typeof syncSentStatus>>;
+    try {
+      const since = getLastSentStatusCursor() ?? undefined;
+      items = await withRetry("sent-status", () => syncSentStatus(this.accessToken, since));
+    } catch (error) {
+      log.warn("outbox", "sent-status sync failed", { error: error instanceof Error ? error.message : String(error) });
+      return;
+    }
 
     let anyChanged = false;
     for (const item of items) {

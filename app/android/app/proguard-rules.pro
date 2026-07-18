@@ -8,3 +8,14 @@
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
 # Add any project specific keep options here:
+
+# react-native-quick-sqlite: JSI bindings resolved reflectively
+-keep class com.reactnativequicksqlite.** { *; }
+
+# react-native-keychain: cipher storage classes looked up by name
+-keep class com.oblador.keychain.** { *; }
+
+# Firebase messaging + notifee
+-keep class com.google.firebase.** { *; }
+-keep class app.notifee.** { *; }
+-keep class io.invertase.firebase.** { *; }
