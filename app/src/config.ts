@@ -10,4 +10,4 @@ export const GIPHY_API_KEY = "";
  *   - physical device on the same LAN: http://<your-machine-LAN-IP>:8000
  *   - production: your deployed https:// URL
  */
-export const API_BASE_URL = "http://192.168.1.101:8000";
+export const API_BASE_URL = "https://chit-chat-8shf.onrender.com";
