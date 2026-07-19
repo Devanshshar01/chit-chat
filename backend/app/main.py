@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.database import init_models
+from app.seed import seed
 from app.routers import auth, users, crypto_identity, messages, media, link_preview, devices
 
 logging.basicConfig(level=logging.INFO)
@@ -63,3 +64,6 @@ async def on_startup():
     # Dev convenience only. Real deploys run `alembic upgrade head` instead
     # of this - see alembic/ - so schema changes are tracked, not implicit.
     await init_models()
+    # Ensure both "devansh" and "swarnima" accounts exist on every start.
+    # Critical for Render Free Tier where SQLite DB is wiped on every restart.
+    await seed()
