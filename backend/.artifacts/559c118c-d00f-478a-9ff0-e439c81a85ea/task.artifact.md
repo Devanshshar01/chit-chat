@@ -1,0 +1,5 @@
+- [x] Research existing seeding logic and startup flow
+- [/] Modify `backend/app/main.py` to call `seed()` on startup
+- [ ] Verify `backend/app/seed.py` correctly handles both "devansh" and "swarnima"
+- [ ] Provide instructions for setting environment variables on Render
+- [ ] Final Walkthrough

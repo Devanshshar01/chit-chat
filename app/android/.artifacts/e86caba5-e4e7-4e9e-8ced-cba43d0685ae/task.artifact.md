@@ -1,0 +1,3 @@
+- [ ] Install project dependencies (`npm install`)
+- [ ] Verify `node_modules/@react-native/gradle-plugin` exists
+- [ ] Run a Gradle task to verify the fix
