@@ -1,0 +1,300 @@
+/* ==========================================================================
+   Chit-Chat Design Tokens & Global CSS
+   Warm Minimalism & Tactile Privacy for Exclusive Two-Person E2EE Space
+   ========================================================================== */
+
+/* ---------- Light Theme Tokens (Warm Alabaster & Clay) ---------- */
+:root {
+  --bg-primary: #FBF9F5;
+  --bg-secondary: #F3EFE6;
+  --bg-tertiary: #E8E2D5;
+  --surface-card: #FFFFFF;
+  --surface-overlay: rgba(251, 249, 245, 0.88);
+  
+  --text-primary: #1A1917;
+  --text-secondary: #66625B;
+  --text-tertiary: #999388;
+  --text-inverse: #FFFFFF;
+  
+  --accent-primary: #C86D51;
+  --accent-hover: #B35C42;
+  --accent-subtle: #F7EBE7;
+  
+  --bubble-sent: #2C2A29;
+  --text-sent: #FBF9F5;
+  --bubble-received: #EFECE6;
+  --text-received: #1A1917;
+  
+  --border-subtle: #E5DFD3;
+  --border-strong: #C5BEB1;
+  
+  --semantic-error: #D32F2F;
+  --semantic-error-bg: #FDE8E8;
+  --semantic-success: #2E7D32;
+  --semantic-success-bg: #E8F5E9;
+  --semantic-warning: #ED6C02;
+  --semantic-warning-bg: #FFF3E0;
+
+  /* Elevation Shadows */
+  --shadow-sm: 0px 2px 8px rgba(26, 25, 23, 0.04), 0px 1px 2px rgba(26, 25, 23, 0.02);
+  --shadow-md: 0px 6px 16px rgba(26, 25, 23, 0.08), 0px 2px 4px rgba(26, 25, 23, 0.04);
+  --shadow-lg: 0px 16px 32px rgba(26, 25, 23, 0.12), 0px 4px 8px rgba(26, 25, 23, 0.06);
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Newsreader', Georgia, serif;
+
+  /* Radii */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-pill: 9999px;
+}
+
+/* ---------- Dark Theme Tokens (Midnight Obsidian & Warm Clay) ---------- */
+.dark-theme, [data-theme="dark"] {
+  --bg-primary: #0F1115;
+  --bg-secondary: #161920;
+  --bg-tertiary: #1F242E;
+  --surface-card: #181B22;
+  --surface-overlay: rgba(15, 17, 21, 0.88);
+  
+  --text-primary: #F0F2F5;
+  --text-secondary: #9EA4B0;
+  --text-tertiary: #656B77;
+  --text-inverse: #0F1115;
+  
+  --accent-primary: #E08E79;
+  --accent-hover: #E8A290;
+  --accent-subtle: #2D1D18;
+  
+  --bubble-sent: #3B2620;
+  --text-sent: #F9EBE7;
+  --bubble-received: #1F242E;
+  --text-received: #E6E9EF;
+  
+  --border-subtle: #282E3A;
+  --border-strong: #3F4758;
+  
+  --semantic-error: #EF5350;
+  --semantic-error-bg: #3C1B1B;
+  --semantic-success: #66BB6A;
+  --semantic-success-bg: #1B331E;
+  --semantic-warning: #FFA726;
+  --semantic-warning-bg: #3B2A1A;
+
+  /* Elevation Shadows */
+  --shadow-sm: 0px 2px 8px rgba(0, 0, 0, 0.3), 0px 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0px 6px 20px rgba(0, 0, 0, 0.45), 0px 2px 6px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0px 20px 40px rgba(0, 0, 0, 0.6), 0px 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* System dark mode preference fallback */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-primary: #0F1115;
+    --bg-secondary: #161920;
+    --bg-tertiary: #1F242E;
+    --surface-card: #181B22;
+    --surface-overlay: rgba(15, 17, 21, 0.88);
+    
+    --text-primary: #F0F2F5;
+    --text-secondary: #9EA4B0;
+    --text-tertiary: #656B77;
+    --text-inverse: #0F1115;
+    
+    --accent-primary: #E08E79;
+    --accent-hover: #E8A290;
+    --accent-subtle: #2D1D18;
+    
+    --bubble-sent: #3B2620;
+    --text-sent: #F9EBE7;
+    --bubble-received: #1F242E;
+    --text-received: #E6E9EF;
+    
+    --border-subtle: #282E3A;
+    --border-strong: #3F4758;
+    
+    --semantic-error: #EF5350;
+    --semantic-error-bg: #3C1B1B;
+    --semantic-success: #66BB6A;
+    --semantic-success-bg: #1B331E;
+    --semantic-warning: #FFA726;
+    --semantic-warning-bg: #3B2A1A;
+
+    --shadow-sm: 0px 2px 8px rgba(0, 0, 0, 0.3), 0px 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0px 6px 20px rgba(0, 0, 0, 0.45), 0px 2px 6px rgba(0, 0, 0, 0.25);
+    --shadow-lg: 0px 20px 40px rgba(0, 0, 0, 0.6), 0px 4px 12px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* ---------- Reset & Layout Base ---------- */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-pill);
+}
+
+/* Animations */
+@keyframes pulseGlow {
+  0% { transform: scale(0.95); opacity: 0.8; box-shadow: 0 0 0 0 rgba(224, 142, 121, 0.4); }
+  70% { transform: scale(1.05); opacity: 1; box-shadow: 0 0 0 8px rgba(224, 142, 121, 0); }
+  100% { transform: scale(0.95); opacity: 0.8; box-shadow: 0 0 0 0 rgba(224, 142, 121, 0); }
+}
+
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-up {
+  animation: slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ---------- Part 3 Motion System ---------- */
+
+/* motion-message-send: Bubble spring expansion on send */
+@keyframes messageSendSpring {
+  0% { transform: scale(0.85) translateY(8px); opacity: 0; }
+  50% { transform: scale(1.03) translateY(-2px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.animate-message-send {
+  animation: messageSendSpring 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* motion-message-receive: Slide-up fade on incoming message */
+@keyframes messageReceiveSlide {
+  0% { transform: translateY(12px) translateX(-6px); opacity: 0; }
+  100% { transform: translateY(0) translateX(0); opacity: 1; }
+}
+
+.animate-message-receive {
+  animation: messageReceiveSlide 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* motion-reaction-pop: Scale spring bounce when adding reaction */
+@keyframes reactionPop {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.3); opacity: 1; }
+  80% { transform: scale(0.9); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-reaction-pop {
+  animation: reactionPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* motion-typing-pulse: Opacity wave on typing indicator */
+@keyframes typingPulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.animate-typing-pulse {
+  animation: typingPulse 1.8s ease-in-out infinite;
+}
+
+/* motion-context-sheet: Bottom sheet spring slide-up */
+@keyframes contextSheetSpring {
+  0% { transform: translateY(100%); }
+  70% { transform: translateY(-3%); }
+  100% { transform: translateY(0); }
+}
+
+.animate-context-sheet {
+  animation: contextSheetSpring 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* motion-swipe-reply: Elastic horizontal pull-back on reply swipe */
+@keyframes swipeReplySnap {
+  0% { transform: translateX(60px); }
+  60% { transform: translateX(-4px); }
+  100% { transform: translateX(0); }
+}
+
+.animate-swipe-reply {
+  animation: swipeReplySnap 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* motion-lightbox-open: Zoom-in transition for fullscreen media */
+@keyframes lightboxZoomIn {
+  0% { transform: scale(0.7); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes lightboxBackdropFade {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.animate-lightbox-open {
+  animation: lightboxZoomIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Skeleton loading pulse for chat loading state */
+@keyframes skeletonPulse {
+  0%, 100% { background-color: var(--bg-secondary); }
+  50% { background-color: var(--bg-tertiary); }
+}
+
+.skeleton-bubble {
+  animation: skeletonPulse 1.2s ease-in-out infinite;
+  border-radius: 18px;
+}
+
+/* Reply preview bar slide-up */
+@keyframes replyBarSlideUp {
+  0% { transform: translateY(100%); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.animate-reply-bar {
+  animation: replyBarSlideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Highlight pulse for scroll-to-original */
+@keyframes highlightPulse {
+  0% { background-color: var(--accent-subtle); }
+  100% { background-color: transparent; }
+}
+
+.animate-highlight-pulse {
+  animation: highlightPulse 1.5s ease-out forwards;
+}
+
+/* Search result highlight */
+.search-highlight {
+  background-color: var(--accent-subtle);
+  border-radius: 2px;
+  padding: 0 2px;
+}
