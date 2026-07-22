@@ -9,6 +9,7 @@ import { MemoriesScreen } from './screens/MemoriesScreen';
 import { VaultScreen } from './screens/VaultScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { BottomNav, type TabType } from './components/BottomNav';
+import { DesktopNavigation } from './components/DesktopNavigation';
 
 interface UserSession {
   username: string;
@@ -111,22 +112,15 @@ export function App() {
   }
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-        width: '100vw',
-        maxWidth: '600px',
-        margin: '0 auto',
-        backgroundColor: 'var(--bg-primary)',
-        color: 'var(--text-primary)',
-        position: 'relative',
-        boxShadow: '0 0 50px rgba(0, 0, 0, 0.3)',
-      }}
-    >
+    <div className="app-shell">
+      <DesktopNavigation
+        activeTab={activeTab}
+        currentUser={session.username}
+        onTabChange={setActiveTab}
+        onOpenProfile={() => setShowProfile(true)}
+      />
       {/* Active Screen Area */}
-      <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+      <div className="app-content">
         {activeTab === 'home' && (
           <HomeScreen
             currentUser={session.username}
@@ -150,7 +144,6 @@ export function App() {
         {activeTab === 'vault' && <VaultScreen />}
       </div>
 
-      {/* Bottom Navigation */}
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* Partner & Settings Profile Overlay */}

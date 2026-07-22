@@ -1,5 +1,4 @@
-import React from 'react';
-import { Avatar } from '../components/Avatar';
+import { Icon } from '../components/Icon';
 
 interface HomeScreenProps {
   currentUser: string;
@@ -8,220 +7,52 @@ interface HomeScreenProps {
   onNavigateTab: (tab: 'memories' | 'vault') => void;
 }
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({
-  currentUser,
-  onOpenChat,
-  onOpenProfile,
-  onNavigateTab,
-}) => {
+const memories = [
+  { title: 'After the rain', image: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=700&q=85' },
+  { title: 'Saturday table', image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=700&q=85' },
+  { title: 'Long way home', image: 'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=700&q=85' },
+];
+
+export function HomeScreen({ currentUser, onOpenChat, onOpenProfile, onNavigateTab }: HomeScreenProps) {
   const partnerName = currentUser.toLowerCase() === 'devansh' ? 'Swarnima' : 'Devansh';
+  return <main className="app-page home-page">
+    <header className="page-topline">
+      <button className="home-greeting" onClick={onOpenProfile} aria-label={`Open ${partnerName}'s profile`}>
+        <span className="presence-avatar">{partnerName.slice(0, 1)}</span>
+        <span><small>private space for two</small><b>{partnerName} + {currentUser}</b></span>
+      </button>
+      <button className="icon-button" onClick={onOpenProfile} aria-label="Open settings"><Icon name="settings" size={19} /></button>
+    </header>
 
-  return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        backgroundColor: 'var(--bg-primary)',
-        overflowY: 'auto',
-        padding: '20px 16px 80px 16px',
-      }}
-    >
-      {/* Top Header Bar */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '24px',
-        }}
-      >
-        <div onClick={onOpenProfile} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
-          <Avatar size="md" name={partnerName} showPresence={true} isOnline={true} />
-          <div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-              {partnerName} & {currentUser}
-            </h2>
-            <span style={{ fontSize: '12px', color: 'var(--accent-primary)', fontWeight: 500 }}>
-              ● Together in app
-            </span>
-          </div>
-        </div>
-
-        <button
-          onClick={onOpenProfile}
-          title="Security & Profile Settings"
-          style={{
-            background: 'none',
-            border: 'none',
-            fontSize: '20px',
-            cursor: 'pointer',
-            color: 'var(--text-secondary)',
-          }}
-        >
-          ⚙️
-        </button>
+    <section className="home-hero" aria-labelledby="home-quote">
+      <div>
+        <p className="eyebrow">A note from last night</p>
+        <blockquote id="home-quote" className="home-quote">“I like that this is where the ordinary things get to matter.”</blockquote>
+        <p className="home-quote-author">From {partnerName}, 11:15 PM</p>
       </div>
+      <button className="primary-button home-open-chat" onClick={onOpenChat}><Icon name="message" size={17} />Open conversation</button>
+    </section>
 
-      {/* Hero Relationship Card */}
-      <div
-        style={{
-          backgroundColor: 'var(--surface-card)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 'var(--radius-lg)',
-          padding: '28px 24px',
-          boxShadow: 'var(--shadow-md)',
-          marginBottom: '24px',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            fontSize: '11px',
-            fontWeight: 600,
-            color: 'var(--accent-primary)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            marginBottom: '12px',
-          }}
-        >
-          ✨ Starred Quote of the Day
+    <div className="home-dashboard">
+      <section>
+        <div className="home-section-heading"><h2>Recently kept</h2><button className="text-button" onClick={() => onNavigateTab('memories')}>See all</button></div>
+        <div className="memory-ribbon">
+          {memories.map((memory) => <button className="memory-tile" key={memory.title} onClick={() => onNavigateTab('vault')}><img src={memory.image} alt="" /><span>{memory.title}</span></button>)}
         </div>
+      </section>
 
-        <blockquote
-          style={{
-            fontFamily: 'var(--font-serif)',
-            fontSize: '1.35rem',
-            fontStyle: 'italic',
-            color: 'var(--text-primary)',
-            lineHeight: '1.4',
-            margin: '0 0 16px 0',
-          }}
-        >
-          "You are my favorite notification every single day."
-        </blockquote>
+      <section>
+        <div className="home-section-heading"><h2>Right now</h2><span>Live</span></div>
+        <div className="partner-status"><i aria-hidden="true" /><p><b>{partnerName} is here</b><br /><small>Both of you are in the app</small></p><Icon name="shield" size={17} aria-label="Encrypted" /></div>
+      </section>
 
-        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '24px' }}>
-          — {partnerName} (Yesterday at 11:15 PM)
+      <section>
+        <div className="home-section-heading"><h2>Since you last looked</h2></div>
+        <div className="activity-list">
+          <div className="activity-row"><span><Icon name="mic" size={14} /></span><div><b>Voice note saved</b><small>0:42 from {partnerName}</small></div></div>
+          <div className="activity-row"><span><Icon name="bookmark" size={14} /></span><div><b>One message was kept close</b><small>Yesterday evening</small></div></div>
         </div>
-
-        {/* Primary CTA: Open Chat */}
-        <button
-          onClick={onOpenChat}
-          style={{
-            width: '100%',
-            padding: '16px',
-            fontSize: '1rem',
-            fontWeight: 600,
-            color: 'var(--text-inverse)',
-            backgroundColor: 'var(--accent-primary)',
-            border: 'none',
-            borderRadius: 'var(--radius-pill)',
-            cursor: 'pointer',
-            boxShadow: 'var(--shadow-sm)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            transition: 'transform 0.15s, background-color 0.2s',
-          }}
-        >
-          <span>💬</span>
-          <span>Open Private Channel</span>
-        </button>
-      </div>
-
-      {/* Presence & Local Time Widget */}
-      <div
-        style={{
-          backgroundColor: 'var(--bg-secondary)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 'var(--radius-md)',
-          padding: '16px 20px',
-          marginBottom: '24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div>
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Partner Status</div>
-          <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
-            {partnerName} is Active Now
-          </div>
-        </div>
-        <div style={{ fontSize: '12px', color: 'var(--accent-primary)', fontWeight: 500 }}>
-          📍 E2EE Connected
-        </div>
-      </div>
-
-      {/* Shared Memories Preview Strip */}
-      <div style={{ marginBottom: '24px' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '12px',
-          }}
-        >
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-            Recent Shared Memories
-          </h3>
-          <button
-            onClick={() => onNavigateTab('vault')}
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '12px',
-              fontWeight: 600,
-              color: 'var(--accent-primary)',
-              cursor: 'pointer',
-            }}
-          >
-            View All →
-          </button>
-        </div>
-
-        {/* Horizontal Strip */}
-        <div
-          style={{
-            display: 'flex',
-            gap: '12px',
-            overflowX: 'auto',
-            paddingBottom: '8px',
-          }}
-        >
-          {[
-            { id: '1', title: 'Sunset View', color: '#3b82f6', icon: '🖼️' },
-            { id: '2', title: 'Voice Note (0:42)', color: '#10b981', icon: '🎙️' },
-            { id: '3', title: 'Coffee Date', color: '#f59e0b', icon: '🖼️' },
-          ].map((m) => (
-            <div
-              key={m.id}
-              onClick={() => onNavigateTab('vault')}
-              style={{
-                flexShrink: 0,
-                width: '130px',
-                height: '110px',
-                backgroundColor: m.color,
-                borderRadius: 'var(--radius-md)',
-                padding: '12px',
-                color: '#ffffff',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                cursor: 'pointer',
-                boxShadow: 'var(--shadow-sm)',
-              }}
-            >
-              <div style={{ fontSize: '20px' }}>{m.icon}</div>
-              <div style={{ fontSize: '12px', fontWeight: 600 }}>{m.title}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+      </section>
     </div>
-  );
-};
+  </main>;
+}

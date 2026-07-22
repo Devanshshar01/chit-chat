@@ -1,155 +1,32 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
-interface MemoryItem {
-  id: string;
-  type: 'quote' | 'milestone' | 'voicenote';
-  title: string;
-  content: string;
-  date: string;
-  author: string;
+type MemoryType = 'all' | 'quote' | 'milestone';
+interface Memory { id: string; type: Exclude<MemoryType, 'all'>; title: string; content: string; date: string; }
+
+const memories: Memory[] = [
+  { id: 'first', type: 'milestone', title: 'The first conversation', content: 'The beginning of this shared thread.', date: 'July 21, 2026' },
+  { id: 'quote', type: 'quote', title: 'A note from Swarnima', content: '“You are my favorite notification every single day.”', date: 'Yesterday' },
+  { id: 'night', type: 'quote', title: 'A late-night thought', content: '“Glad we have this small place that belongs exclusively to us.”', date: 'July 19, 2026' },
+  { id: 'coffee', type: 'milestone', title: 'Coffee after rain', content: 'Pinned from a photo shared on a quiet Saturday.', date: 'July 18, 2026' },
+];
+
+export function MemoriesScreen() {
+  const [filter, setFilter] = useState<MemoryType>('all');
+  const visible = filter === 'all' ? memories : memories.filter((memory) => memory.type === filter);
+  return <main className="app-page memory-page">
+    <header className="memory-header">
+      <div><p className="eyebrow">Shared archive</p><h1 className="page-title">Things worth<br />returning to.</h1><p className="page-intro">A small, intentional record of what the two of you chose to keep.</p></div>
+      <div className="memory-filter" aria-label="Filter memories">
+        {([{ id: 'all', label: 'Everything' }, { id: 'quote', label: 'Notes' }, { id: 'milestone', label: 'Moments' }] as const).map((item) => <button key={item.id} className={filter === item.id ? 'is-active' : ''} onClick={() => setFilter(item.id)}>{item.label}</button>)}
+      </div>
+    </header>
+
+    {filter !== 'milestone' && <section className="memory-feature"><blockquote>“The ordinary things get to matter here.”</blockquote><p>Kept from a message on July 20</p></section>}
+    <section className="memory-timeline" aria-label="Saved memories">
+      {visible.map((memory) => <article className={`memory-entry ${memory.type === 'quote' ? 'memory-entry--quote' : ''}`} key={memory.id}>
+        <div className="memory-entry__line" aria-hidden="true" />
+        <div><time>{memory.date}</time><h2>{memory.title}</h2><p>{memory.content}</p></div>
+      </article>)}
+    </section>
+  </main>;
 }
-
-export const MemoriesScreen: React.FC = () => {
-  const [filter, setFilter] = useState<'all' | 'quote' | 'milestone'>('all');
-
-  const memories: MemoryItem[] = [
-    {
-      id: '1',
-      type: 'milestone',
-      title: 'Our First Conversation',
-      content: 'The day we started using our private E2EE channel.',
-      date: 'July 21, 2026',
-      author: 'System',
-    },
-    {
-      id: '2',
-      type: 'quote',
-      title: 'Favorite Quote',
-      content: '"You are my favorite notification every single day."',
-      date: 'Yesterday',
-      author: 'Swarnima',
-    },
-    {
-      id: '3',
-      type: 'quote',
-      title: 'Late Night Thought',
-      content: '"Glad we have this space that belongs exclusively to us."',
-      date: '2 days ago',
-      author: 'Devansh',
-    },
-  ];
-
-  const filteredMemories =
-    filter === 'all' ? memories : memories.filter((m) => m.type === filter);
-
-  return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        backgroundColor: 'var(--bg-primary)',
-        overflowY: 'auto',
-        padding: '20px 16px 80px 16px',
-      }}
-    >
-      {/* Screen Header */}
-      <div style={{ marginBottom: '20px' }}>
-        <h1
-          style={{
-            fontFamily: 'var(--font-serif)',
-            fontSize: '1.75rem',
-            fontWeight: 600,
-            color: 'var(--text-primary)',
-            margin: '0 0 4px 0',
-          }}
-        >
-          Memories & Moments
-        </h1>
-        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-          Your shared history, quotes, and relationship milestones
-        </p>
-      </div>
-
-      {/* Filters */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
-        {[
-          { id: 'all', label: 'All' },
-          { id: 'quote', label: 'Saved Quotes' },
-          { id: 'milestone', label: 'Milestones' },
-        ].map((f) => (
-          <button
-            key={f.id}
-            onClick={() => setFilter(f.id as any)}
-            style={{
-              padding: '6px 14px',
-              fontSize: '12px',
-              fontWeight: 500,
-              borderRadius: 'var(--radius-pill)',
-              border: '1px solid var(--border-subtle)',
-              backgroundColor: filter === f.id ? 'var(--accent-primary)' : 'var(--bg-secondary)',
-              color: filter === f.id ? 'var(--text-inverse)' : 'var(--text-secondary)',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Timeline List */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {filteredMemories.map((m) => (
-          <div
-            key={m.id}
-            style={{
-              backgroundColor: 'var(--surface-card)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-md)',
-              padding: '20px',
-              boxShadow: 'var(--shadow-sm)',
-              position: 'relative',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  color: 'var(--accent-primary)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                }}
-              >
-                {m.type === 'milestone' ? '🎉 Milestone' : '💬 Saved Quote'}
-              </span>
-              <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{m.date}</span>
-            </div>
-
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
-              {m.title}
-            </h3>
-
-            <p
-              style={{
-                fontFamily: m.type === 'quote' ? 'var(--font-serif)' : 'var(--font-sans)',
-                fontStyle: m.type === 'quote' ? 'italic' : 'normal',
-                fontSize: '1rem',
-                color: 'var(--text-secondary)',
-                lineHeight: '1.5',
-                marginBottom: '12px',
-              }}
-            >
-              {m.content}
-            </p>
-
-            <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', textAlign: 'right' }}>
-              — {m.author}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};

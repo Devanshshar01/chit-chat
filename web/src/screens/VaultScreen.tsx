@@ -1,120 +1,23 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { Icon } from '../components/Icon';
 
-export const VaultScreen: React.FC = () => {
-  const [activeCategory, setActiveCategory] = useState<'photos' | 'docs' | 'audio'>('photos');
+type Category = 'photos' | 'documents' | 'audio';
+const photos = [
+  { title: 'Early light', image: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=900&q=85' },
+  { title: 'Coffee at noon', image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=85' },
+  { title: 'A long weekend', image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=85' },
+  { title: 'Walking home', image: 'https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=900&q=85' },
+  { title: 'The window seat', image: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=900&q=85' },
+  { title: 'Slow morning', image: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=900&q=85' },
+];
 
-  const photos = [
-    { id: '1', title: 'Sunset Memory', date: 'July 20, 2026', color: '#3b82f6' },
-    { id: '2', title: 'Coffee Date', date: 'July 18, 2026', color: '#10b981' },
-    { id: '3', title: 'Weekend Getaway', date: 'July 12, 2026', color: '#f59e0b' },
-    { id: '4', title: 'Evening Walk', date: 'July 05, 2026', color: '#8b5cf6' },
-  ];
-
-  return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        backgroundColor: 'var(--bg-primary)',
-        overflowY: 'auto',
-        padding: '20px 16px 80px 16px',
-      }}
-    >
-      {/* Header */}
-      <div style={{ marginBottom: '20px' }}>
-        <h1
-          style={{
-            fontFamily: 'var(--font-serif)',
-            fontSize: '1.75rem',
-            fontWeight: 600,
-            color: 'var(--text-primary)',
-            margin: '0 0 4px 0',
-          }}
-        >
-          Shared Vault
-        </h1>
-        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-          Encrypted gallery of photos, documents, and voice notes
-        </p>
-      </div>
-
-      {/* Categories */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-        {[
-          { id: 'photos', label: '🖼️ Photos & Videos' },
-          { id: 'docs', label: '📄 Documents' },
-          { id: 'audio', label: '🎙️ Voice Clips' },
-        ].map((c) => (
-          <button
-            key={c.id}
-            onClick={() => setActiveCategory(c.id as any)}
-            style={{
-              padding: '8px 14px',
-              fontSize: '12px',
-              fontWeight: 500,
-              borderRadius: 'var(--radius-pill)',
-              border: '1px solid var(--border-subtle)',
-              backgroundColor: activeCategory === c.id ? 'var(--accent-primary)' : 'var(--bg-secondary)',
-              color: activeCategory === c.id ? 'var(--text-inverse)' : 'var(--text-secondary)',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Media Grid */}
-      {activeCategory === 'photos' ? (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-            gap: '12px',
-          }}
-        >
-          {photos.map((item) => (
-            <div
-              key={item.id}
-              onClick={() => alert(`Opening ${item.title} in zero-distraction Lightbox`)}
-              style={{
-                height: '140px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: item.color,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'flex-end',
-                padding: '12px',
-                color: '#ffffff',
-                cursor: 'pointer',
-                boxShadow: 'var(--shadow-sm)',
-                transition: 'transform 0.2s',
-                position: 'relative',
-                overflow: 'hidden',
-              }}
-            >
-              <div style={{ fontSize: '13px', fontWeight: 600 }}>{item.title}</div>
-              <div style={{ fontSize: '10px', opacity: 0.8 }}>{item.date}</div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div
-          style={{
-            padding: '40px 20px',
-            textAlign: 'center',
-            backgroundColor: 'var(--surface-card)',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--text-secondary)',
-          }}
-        >
-          <div style={{ fontSize: '32px', marginBottom: '8px' }}>📂</div>
-          <p style={{ fontSize: '0.9rem' }}>No {activeCategory === 'docs' ? 'documents' : 'voice clips'} shared yet.</p>
-        </div>
-      )}
+export function VaultScreen() {
+  const [category, setCategory] = useState<Category>('photos');
+  return <main className="app-page library-page">
+    <header className="library-header"><div><p className="eyebrow">Shared library</p><h1 className="page-title">Everything<br />you shared.</h1><p className="page-intro">Photos, notes, and recordings kept in one private place.</p></div><button className="icon-button" aria-label="Search your library"><Icon name="search" size={19} /></button></header>
+    <div className="library-tabs" role="tablist" aria-label="Shared media type">
+      {([{ id: 'photos', label: 'Photos' }, { id: 'documents', label: 'Documents' }, { id: 'audio', label: 'Voice notes' }] as const).map((item) => <button key={item.id} role="tab" aria-selected={category === item.id} className={category === item.id ? 'is-active' : ''} onClick={() => setCategory(item.id)}>{item.label}</button>)}
     </div>
-  );
-};
+    {category === 'photos' ? <section className="photo-grid" aria-label="Shared photos">{photos.map((photo) => <button className="library-photo" key={photo.title} onClick={() => window.alert(`Opening ${photo.title}`)}><img src={photo.image} alt={photo.title} /><span>{photo.title}</span></button>)}</section> : <section className="library-empty"><div>{category === 'documents' ? <Icon name="file" size={28} /> : <Icon name="mic" size={28} />}<p>{category === 'documents' ? 'No documents have been shared yet.' : 'No voice notes have been kept here yet.'}</p></div></section>}
+  </main>;
+}

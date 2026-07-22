@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "motion": "^12.42.2",
+    "ogl": "^1.0.11",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
