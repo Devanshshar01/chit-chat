@@ -30,7 +30,6 @@ export function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
 
-  // Apply theme data-theme attribute
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
@@ -74,12 +73,10 @@ export function App() {
     setShowProfile(false);
   };
 
-  // 1. Welcome Screen
   if (authStep === 'welcome') {
     return <WelcomeScreen onStartLogin={() => setAuthStep('login')} />;
   }
 
-  // 2. Login Screen
   if (authStep === 'login') {
     return (
       <LoginScreen
@@ -89,7 +86,6 @@ export function App() {
     );
   }
 
-  // 3. Cryptographic Loading Transition
   if (authStep === 'loading' && pendingSession) {
     return (
       <LoadingScreen
@@ -101,12 +97,10 @@ export function App() {
     );
   }
 
-  // 4. First-Time Device Setup
   if (authStep === 'setup') {
     return <DeviceSetupScreen onCompleteSetup={handleCompleteSetup} />;
   }
 
-  // 5. Main Application Shell
   if (!session) {
     return <WelcomeScreen onStartLogin={() => setAuthStep('login')} />;
   }
@@ -119,11 +113,11 @@ export function App() {
         onTabChange={setActiveTab}
         onOpenProfile={() => setShowProfile(true)}
       />
-      {/* Active Screen Area */}
       <div className="app-content">
         {activeTab === 'home' && (
           <HomeScreen
             currentUser={session.username}
+            accessToken={session.accessToken}
             onOpenChat={() => setActiveTab('chat')}
             onOpenProfile={() => setShowProfile(true)}
             onNavigateTab={setActiveTab}
@@ -133,23 +127,24 @@ export function App() {
         {activeTab === 'chat' && (
           <ChatScreen
             currentUser={session.username}
+            accessToken={session.accessToken}
             onOpenProfile={() => setShowProfile(true)}
             onToggleTheme={toggleTheme}
             theme={theme}
           />
         )}
 
-        {activeTab === 'memories' && <MemoriesScreen />}
+        {activeTab === 'memories' && <MemoriesScreen accessToken={session.accessToken} />}
 
-        {activeTab === 'vault' && <VaultScreen />}
+        {activeTab === 'vault' && <VaultScreen accessToken={session.accessToken} />}
       </div>
 
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {/* Partner & Settings Profile Overlay */}
       {showProfile && (
         <ProfileScreen
           currentUser={session.username}
+          accessToken={session.accessToken}
           onClose={() => setShowProfile(false)}
           onLogout={handleLogout}
           onToggleTheme={toggleTheme}
