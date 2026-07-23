@@ -37,7 +37,20 @@ export function MemoriesScreen({ accessToken }: MemoriesScreenProps) {
     };
   }, [accessToken]);
 
-  const visible = filter === 'all' ? ['history'] : filter === 'milestone' ? ['history'] : [];
+  const emptyStateText = (() => {
+    if (loading) return 'Checking the connected message history…';
+    if (error) return error;
+    
+    const countLabel = messageCount !== null ? ` (${messageCount} encrypted message record(s) synced)` : '';
+    
+    if (filter === 'quote') {
+      return `No starred or saved notes are available yet${countLabel}. Saving quotes requires message decryption and bookmarking capabilities.`;
+    }
+    if (filter === 'milestone') {
+      return `No shared milestones or moments have been recorded yet${countLabel}.`;
+    }
+    return `No saved memories are available from the server yet${countLabel}. Custom notes and milestones will appear once they are saved in the conversation.`;
+  })();
 
   return (
     <main className="app-page memory-page">
@@ -56,25 +69,17 @@ export function MemoriesScreen({ accessToken }: MemoriesScreenProps) {
 
       <section className="memory-feature">
         <blockquote>Shared history is only visible when the backend has data to surface.</blockquote>
-        <p>{loading ? 'Checking the connected message history…' : error ? error : messageCount !== null ? `${messageCount} message record(s) are available from the server.` : 'No history available yet.'}</p>
+        <p>
+          {loading ? 'Checking the connected message history…' : error ? error : messageCount !== null ? `${messageCount} message record(s) are available from the server.` : 'No history available yet.'}
+        </p>
       </section>
 
       <section className="memory-timeline" aria-label="Saved memories">
-        {visible.length === 0 ? (
-          <div className="memory-empty">No saved memories are available from the server yet.</div>
-        ) : (
-          visible.map((id) => (
-            <article className="memory-entry" key={id}>
-              <div className="memory-entry__line" aria-hidden="true" />
-              <div>
-                <time>{messageCount !== null ? 'Synced from the backend' : 'Pending sync'}</time>
-                <h2>Message history</h2>
-                <p>{messageCount !== null ? `The backend currently reports ${messageCount} message record(s).` : 'The history view is waiting for the first sync.'}</p>
-              </div>
-            </article>
-          ))
-        )}
+        <div className="memory-empty">
+          {emptyStateText}
+        </div>
       </section>
     </main>
   );
 }
+

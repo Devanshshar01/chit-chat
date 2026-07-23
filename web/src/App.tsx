@@ -10,6 +10,7 @@ import { VaultScreen } from './screens/VaultScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { BottomNav, type TabType } from './components/BottomNav';
 import { DesktopNavigation } from './components/DesktopNavigation';
+import { wsService } from './services/websocket';
 
 interface UserSession {
   username: string;
@@ -66,7 +67,14 @@ export function App() {
     }
   };
 
+  useEffect(() => {
+    if (session?.accessToken) {
+      wsService.connect(session.accessToken);
+    }
+  }, [session?.accessToken]);
+
   const handleLogout = () => {
+    wsService.disconnect();
     setSession(null);
     setPendingSession(null);
     setAuthStep('welcome');

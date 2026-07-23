@@ -94,6 +94,20 @@ async def websocket_endpoint(ws: WebSocket, token: str = Query(...)):
                 await _handle_read_receipt(user_id, raw)
                 continue
 
+            if envelope_type == "typing":
+                recipient_username = raw.get("recipient_username")
+                is_typing = bool(raw.get("is_typing"))
+                if recipient_username:
+                    async with AsyncSessionLocal() as db:
+                        recipient = await _get_user_by_username(db, recipient_username)
+                        if recipient:
+                            await manager.push(recipient.id, {
+                                "type": "typing",
+                                "sender_username": my_username,
+                                "is_typing": is_typing,
+                            })
+                continue
+
             if envelope_type == "encrypted_message":
                 if not sender_device_id:
                     await ws.send_json({"error": {"code": "device_bound_token_required", "message": "log in again before sending encrypted messages"}})

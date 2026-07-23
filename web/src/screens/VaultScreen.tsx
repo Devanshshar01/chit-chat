@@ -38,9 +38,27 @@ export function VaultScreen({ accessToken }: VaultScreenProps) {
     };
   }, [accessToken]);
 
-  const content = loading ? 'Checking the connected media history…' : error ? error : messageCount !== null && messageCount > 0
-    ? `${messageCount} message record(s) are available from the server, but no media items are exposed by the existing backend endpoints yet.`
-    : 'No shared media items are available yet from the server.';
+  const getEmptyContent = () => {
+    if (loading) return 'Checking the connected media history…';
+    if (error) return error;
+
+    const countLabel = messageCount !== null ? ` (${messageCount} encrypted message record(s) synced)` : '';
+    const baseMessage = 'No items are exposed by the existing backend endpoints yet.';
+
+    if (category === 'photos') {
+      return `No shared photos are available yet${countLabel}. ${baseMessage}`;
+    }
+    if (category === 'documents') {
+      return `No shared documents are available yet${countLabel}. ${baseMessage}`;
+    }
+    return `No shared voice notes are available yet${countLabel}. ${baseMessage}`;
+  };
+
+  const renderIcon = () => {
+    if (category === 'photos') return <Icon name="image" size={28} />;
+    if (category === 'documents') return <Icon name="file" size={28} />;
+    return <Icon name="mic" size={28} />;
+  };
 
   return (
     <main className="app-page library-page">
@@ -59,10 +77,11 @@ export function VaultScreen({ accessToken }: VaultScreenProps) {
       </div>
       <section className="library-empty">
         <div>
-          {category === 'documents' ? <Icon name="file" size={28} /> : <Icon name="mic" size={28} />}
-          <p>{content}</p>
+          {renderIcon()}
+          <p>{getEmptyContent()}</p>
         </div>
       </section>
     </main>
   );
 }
+
