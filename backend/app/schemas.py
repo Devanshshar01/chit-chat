@@ -1,5 +1,7 @@
 import base64
-from pydantic import BaseModel, field_validator
+from typing import Any
+
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 # ---------- auth ----------
@@ -63,12 +65,131 @@ class KeyBundlePublic(BaseModel):
     prekey_signature: str
 
 
+# ---------- X3DH device bundles ----------
+
+def _decode_b64(value: str, field_name: str, expected_bytes: int | None = None) -> str:
+    try:
+        decoded = base64.b64decode(value, validate=True)
+    except Exception as exc:
+        raise ValueError(f"{field_name} must be valid base64") from exc
+    if expected_bytes is not None and len(decoded) != expected_bytes:
+        raise ValueError(f"{field_name} must decode to {expected_bytes} bytes")
+    return value
+
+
+class DeviceKeyBundleUpload(BaseModel):
+    identity_signing_key_public: str
+    identity_dh_key_public: str
+    signed_prekey_id: str = Field(min_length=1, max_length=64)
+    signed_prekey_public: str
+    signed_prekey_signature: str
+
+    @field_validator("identity_signing_key_public", "identity_dh_key_public", "signed_prekey_public")
+    @classmethod
+    def must_be_32_byte_key(cls, value: str, info) -> str:
+        return _decode_b64(value, info.field_name, 32)
+
+    @field_validator("signed_prekey_signature")
+    @classmethod
+    def must_be_ed25519_signature(cls, value: str) -> str:
+        return _decode_b64(value, "signed_prekey_signature", 64)
+
+
+class OneTimePreKeyUpload(BaseModel):
+    key_id: str = Field(min_length=1, max_length=64)
+    public_key: str
+
+    @field_validator("public_key")
+    @classmethod
+    def must_be_x25519_public_key(cls, value: str) -> str:
+        return _decode_b64(value, "public_key", 32)
+
+
+class OneTimePreKeyBatchUpload(BaseModel):
+    prekeys: list[OneTimePreKeyUpload] = Field(min_length=1, max_length=100)
+
+    @model_validator(mode="after")
+    def key_ids_must_be_unique(self):
+        if len({prekey.key_id for prekey in self.prekeys}) != len(self.prekeys):
+            raise ValueError("one-time prekey key_id values must be unique within a batch")
+        return self
+
+
+class OneTimePreKeyPublic(BaseModel):
+    key_id: str
+    public_key: str
+
+
+class DeviceKeyBundlePublic(BaseModel):
+    device_id: str
+    device_name: str
+    identity_signing_key_public: str
+    identity_dh_key_public: str
+    signed_prekey_id: str
+    signed_prekey_public: str
+    signed_prekey_signature: str
+    one_time_prekeys_available: int
+
+
+class DeviceKeyBundleClaim(DeviceKeyBundlePublic):
+    one_time_prekey: OneTimePreKeyPublic | None = None
+
+
+class PrekeyUploadResult(BaseModel):
+    accepted: int
+    available: int
+
+
 # ---------- messages (offline outbox pattern) ----------
 
 class MessageSend(BaseModel):
     client_id: str            # generated on-device when queued into the local outbox
     recipient_username: str
     ciphertext: str           # base64 - opaque to the server
+
+
+class PrekeyMessageHeader(BaseModel):
+    """Public X3DH setup data carried only on the first ratchet message."""
+    initiator_identity_dh_key: str
+    initiator_ephemeral_key: str
+    recipient_signed_prekey_id: str = Field(min_length=1, max_length=64)
+    recipient_one_time_prekey_id: str | None = Field(default=None, max_length=64)
+
+    @field_validator("initiator_identity_dh_key", "initiator_ephemeral_key")
+    @classmethod
+    def must_have_x25519_public_key(cls, value: str, info) -> str:
+        return _decode_b64(value, info.field_name, 32)
+
+
+class EncryptedMessageEnvelope(BaseModel):
+    """Opaque Double Ratchet ciphertext plus relay-safe header metadata."""
+    type: str = "encrypted_message"
+    client_id: str = Field(min_length=1, max_length=64)
+    recipient_username: str = Field(min_length=1, max_length=32)
+    recipient_device_id: str = Field(min_length=1, max_length=36)
+    protocol_version: int = Field(default=1, ge=1, le=1)
+    session_id: str = Field(min_length=1, max_length=64)
+    ratchet_public_key: str
+    message_number: int = Field(ge=0)
+    previous_chain_length: int = Field(ge=0)
+    nonce: str
+    ciphertext: str = Field(min_length=1)
+    prekey_header: PrekeyMessageHeader | None = None
+
+    @field_validator("ratchet_public_key")
+    @classmethod
+    def must_have_x25519_ratchet_key(cls, value: str) -> str:
+        return _decode_b64(value, "ratchet_public_key", 32)
+
+    @field_validator("nonce")
+    @classmethod
+    def must_have_xchacha_nonce(cls, value: str) -> str:
+        return _decode_b64(value, "nonce", 24)
+
+    @field_validator("ciphertext")
+    @classmethod
+    def must_have_ciphertext(cls, value: str) -> str:
+        return _decode_b64(value, "ciphertext")
 
 
 class MessageAck(BaseModel):
@@ -84,6 +205,15 @@ class MessageSyncItem(BaseModel):
     sender_username: str
     ciphertext: str
     created_at: str
+    protocol_version: int = 0
+    sender_device_id: str | None = None
+    recipient_device_id: str | None = None
+    session_id: str | None = None
+    ratchet_public_key: str | None = None
+    message_number: int | None = None
+    previous_chain_length: int | None = None
+    nonce: str | None = None
+    prekey_header: dict[str, Any] | None = None
 
 
 class PresenceResponse(BaseModel):
@@ -97,6 +227,7 @@ class SentMessageStatus(BaseModel):
     client_id: str
     delivered_at: str | None
     read_at: str | None
+    recipient_device_id: str | None = None
 
 
 # ---------- media pipeline ----------

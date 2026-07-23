@@ -5,7 +5,7 @@ and (new in step 4) messages for the offline outbox pattern.
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import String, DateTime, ForeignKey, LargeBinary, Boolean, UniqueConstraint, Index
+from sqlalchemy import String, DateTime, ForeignKey, LargeBinary, Boolean, UniqueConstraint, Index, Integer, JSON, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -46,6 +46,8 @@ class Device(Base):
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     user: Mapped["User"] = relationship(back_populates="devices")
+    crypto_bundle: Mapped["DeviceKeyBundle | None"] = relationship(back_populates="device", uselist=False, cascade="all, delete-orphan")
+    one_time_prekeys: Mapped[list["OneTimePreKey"]] = relationship(back_populates="device", foreign_keys="OneTimePreKey.device_id", cascade="all, delete-orphan")
 
 
 class RefreshToken(Base):
@@ -85,6 +87,49 @@ class KeyBundle(Base):
     user: Mapped["User"] = relationship(back_populates="key_bundle")
 
 
+class DeviceKeyBundle(Base):
+    """X3DH public material for one concrete device.
+
+    The legacy ``KeyBundle`` above remains user-scoped for compatibility.
+    New E2EE sessions use this device-scoped bundle exclusively. Private keys,
+    X3DH secrets, and ratchet state never enter this table.
+    """
+    __tablename__ = "device_key_bundles"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    device_id: Mapped[str] = mapped_column(ForeignKey("devices.id"), unique=True)
+
+    identity_signing_key_public: Mapped[bytes] = mapped_column(LargeBinary)
+    identity_dh_key_public: Mapped[bytes] = mapped_column(LargeBinary)
+    signed_prekey_id: Mapped[str] = mapped_column(String(64))
+    signed_prekey_public: Mapped[bytes] = mapped_column(LargeBinary)
+    signed_prekey_signature: Mapped[bytes] = mapped_column(LargeBinary)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+    device: Mapped["Device"] = relationship(back_populates="crypto_bundle")
+
+
+class OneTimePreKey(Base):
+    """Public one-time X25519 prekey, atomically claimed exactly once."""
+    __tablename__ = "one_time_prekeys"
+    __table_args__ = (
+        UniqueConstraint("device_id", "key_id", name="uq_one_time_prekey_device_key"),
+        Index("ix_one_time_prekeys_available", "device_id", "claimed_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    device_id: Mapped[str] = mapped_column(ForeignKey("devices.id"))
+    key_id: Mapped[str] = mapped_column(String(64))
+    public_key: Mapped[bytes] = mapped_column(LargeBinary)
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    claimed_by_device_id: Mapped[str | None] = mapped_column(ForeignKey("devices.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    device: Mapped["Device"] = relationship(back_populates="one_time_prekeys", foreign_keys=[device_id])
+
+
 class Message(Base):
     """
     Server never sees plaintext - ciphertext is whatever the client
@@ -101,8 +146,17 @@ class Message(Base):
     """
     __tablename__ = "messages"
     __table_args__ = (
-        UniqueConstraint("sender_id", "client_id", name="uq_sender_client_id"),
+        UniqueConstraint("sender_device_id", "recipient_device_id", "client_id", name="uq_message_device_envelope"),
         Index("ix_messages_recipient_created", "recipient_id", "created_at"),
+        Index("ix_messages_recipient_device_created", "recipient_device_id", "created_at"),
+        Index(
+            "uq_messages_legacy_sender_client",
+            "sender_id",
+            "client_id",
+            unique=True,
+            postgresql_where=text("protocol_version = 0"),
+            sqlite_where=text("protocol_version = 0"),
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
@@ -112,6 +166,18 @@ class Message(Base):
     recipient_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
 
     ciphertext: Mapped[bytes] = mapped_column(LargeBinary)
+
+    # Protocol version 0 is the legacy base64(JSON) payload. Version 1 is
+    # an opaque X3DH + Double Ratchet envelope, encrypted entirely client-side.
+    protocol_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    sender_device_id: Mapped[str | None] = mapped_column(ForeignKey("devices.id"), nullable=True)
+    recipient_device_id: Mapped[str | None] = mapped_column(ForeignKey("devices.id"), nullable=True)
+    session_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    ratchet_public_key: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    message_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    previous_chain_length: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    nonce: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    prekey_header: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

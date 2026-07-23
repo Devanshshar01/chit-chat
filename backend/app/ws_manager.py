@@ -12,32 +12,50 @@ from fastapi import WebSocket
 
 class ConnectionManager:
     def __init__(self):
-        self._active: dict[str, WebSocket] = {}
+        self._active: dict[str, dict[str, WebSocket]] = {}
 
-    async def connect(self, user_id: str, ws: WebSocket):
+    async def connect(self, user_id: str, connection_id: str, ws: WebSocket):
         await ws.accept()
-        self._active[user_id] = ws
+        self._active.setdefault(user_id, {})[connection_id] = ws
 
-    def disconnect(self, user_id: str):
-        self._active.pop(user_id, None)
+    def disconnect(self, user_id: str, connection_id: str):
+        connections = self._active.get(user_id)
+        if connections is None:
+            return
+        connections.pop(connection_id, None)
+        if not connections:
+            self._active.pop(user_id, None)
 
     def is_online(self, user_id: str) -> bool:
-        return user_id in self._active
+        return bool(self._active.get(user_id))
 
     def online_user_ids(self) -> set[str]:
         return set(self._active.keys())
 
     async def push(self, user_id: str, payload: dict) -> bool:
-        """Returns True if actually delivered live, False if recipient offline."""
-        ws = self._active.get(user_id)
+        """Deliver a legacy/user-scoped event to every live device socket."""
+        connections = dict(self._active.get(user_id, {}))
+        if not connections:
+            return False
+        delivered = False
+        for connection_id, ws in connections.items():
+            try:
+                await ws.send_json(payload)
+                delivered = True
+            except Exception:
+                self.disconnect(user_id, connection_id)
+        return delivered
+
+    async def push_device(self, user_id: str, device_id: str, payload: dict) -> bool:
+        """Deliver an E2EE envelope only to its intended recipient device."""
+        ws = self._active.get(user_id, {}).get(device_id)
         if ws is None:
             return False
         try:
             await ws.send_json(payload)
             return True
         except Exception:
-            # connection died without a clean disconnect event
-            self.disconnect(user_id)
+            self.disconnect(user_id, device_id)
             return False
 
     async def broadcast_to_others(self, all_user_ids: list[str], sender_id: str, payload: dict) -> None:

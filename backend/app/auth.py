@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.models import User
+from app.models import Device, User
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
@@ -29,10 +29,11 @@ def hash_refresh_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-def create_access_token(user_id: str) -> str:
+def create_access_token(user_id: str, device_id: str) -> str:
     now = datetime.now(timezone.utc)
     payload = {
         "sub": user_id,
+        "did": device_id,
         "type": "access",
         "iat": now,
         "exp": now + timedelta(minutes=settings.access_token_expire_minutes),
@@ -40,17 +41,24 @@ def create_access_token(user_id: str) -> str:
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
-def decode_access_token(token: str) -> str:
-    """Returns user_id if valid, raises HTTPException otherwise."""
+def decode_access_token_claims(token: str) -> dict:
+    """Returns verified access-token claims without logging token contents."""
     try:
         payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
         if payload.get("type") != "access":
             raise HTTPException(status_code=401, detail="wrong token type")
-        return payload["sub"]
+        if not payload.get("sub"):
+            raise HTTPException(status_code=401, detail="invalid token")
+        return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="invalid token")
+
+
+def decode_access_token(token: str) -> str:
+    """Returns user_id if valid, raises HTTPException otherwise."""
+    return decode_access_token_claims(token)["sub"]
 
 
 async def get_current_user(
@@ -65,3 +73,48 @@ async def get_current_user(
     if user is None:
         raise HTTPException(status_code=401, detail="user no longer exists")
     return user
+
+
+async def get_current_device(
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> Device:
+    """Require a device-bound access token for X3DH-v1 operations."""
+    if token is None:
+        raise HTTPException(status_code=401, detail="not authenticated")
+    claims = decode_access_token_claims(token)
+    device_id = claims.get("did")
+    if not device_id:
+        raise HTTPException(status_code=401, detail="device-bound access token required")
+    result = await db.execute(
+        select(Device).where(
+            Device.id == device_id,
+            Device.user_id == claims["sub"],
+            Device.is_active.is_(True),
+        )
+    )
+    device = result.scalar_one_or_none()
+    if device is None:
+        raise HTTPException(status_code=401, detail="device is no longer active")
+    return device
+
+
+async def get_current_device_optional(
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> Device | None:
+    """Resolve a device when present; permits legacy user-only tokens for v0 sync."""
+    if token is None:
+        return None
+    claims = decode_access_token_claims(token)
+    device_id = claims.get("did")
+    if not device_id:
+        return None
+    result = await db.execute(
+        select(Device).where(
+            Device.id == device_id,
+            Device.user_id == claims["sub"],
+            Device.is_active.is_(True),
+        )
+    )
+    return result.scalar_one_or_none()

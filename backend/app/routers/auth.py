@@ -45,7 +45,7 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     await db.commit()
 
     return TokenResponse(
-        access_token=create_access_token(user.id),
+        access_token=create_access_token(user.id, device.id),
         refresh_token=raw_refresh,
     )
 
@@ -76,7 +76,7 @@ async def refresh_token(body: RefreshRequest, db: AsyncSession = Depends(get_db)
     await db.commit()
 
     return TokenResponse(
-        access_token=create_access_token(stored.user_id),
+        access_token=create_access_token(stored.user_id, stored.device_id),
         refresh_token=raw_refresh,
     )
 
