@@ -1,0 +1,16 @@
+{
+  "short_name": "chit-chat",
+  "name": "chit-chat | private space for two",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any 192x192 512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#101612",
+  "theme_color": "#101612",
+  "display": "standalone",
+  "orientation": "portrait"
+}

@@ -151,7 +151,7 @@ export function HomeScreen({ currentUser, accessToken, onOpenChat, onOpenProfile
                 <br />
                 <small>{partner.statusLabel}</small>
               </p>
-              <Icon name="shield" size={17} aria-label="Encrypted" />
+              <Icon name="shield" size={17} aria-label="Private Channel" />
             </div>
           ) : (
             <div className="home-empty" style={{ padding: '13px 0', color: 'var(--text-secondary)', fontSize: 13 }}>Presence details are unavailable yet.</div>

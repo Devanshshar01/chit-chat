@@ -1,21 +1,22 @@
-const CACHE_NAME = 'chit-chat-pwa-v1';
+const CACHE_NAME = 'chit-chat-pwa-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/favicon.svg',
   '/icons.svg',
+  '/manifest.json'
 ];
 
-self.addEventListener('install', (event: any) => {
+self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
-  (self as any).skipWaiting();
+  self.skipWaiting();
 });
 
-self.addEventListener('activate', (event: any) => {
+self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -25,17 +26,16 @@ self.addEventListener('activate', (event: any) => {
       );
     })
   );
-  (self as any).clients.claim();
+  self.clients.claim();
 });
 
-self.addEventListener('fetch', (event: any) => {
+self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   if (event.request.url.includes('/api') || event.request.url.includes('/ws')) return;
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
-        // Return cached and fetch update in background
         fetch(event.request)
           .then((networkResponse) => {
             if (networkResponse.status === 200) {
@@ -53,7 +53,7 @@ self.addEventListener('fetch', (event: any) => {
   );
 });
 
-self.addEventListener('push', (event: any) => {
+self.addEventListener('push', (event) => {
   let data = { title: 'ChitChat', body: 'New message received' };
   if (event.data) {
     try {
@@ -71,6 +71,6 @@ self.addEventListener('push', (event: any) => {
   };
 
   event.waitUntil(
-    (self as any).registration.showNotification(data.title, options)
+    self.registration.showNotification(data.title, options)
   );
 });

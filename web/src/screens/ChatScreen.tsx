@@ -6,6 +6,7 @@ import { TypingIndicator } from '../components/TypingIndicator';
 import { ContextMenu } from '../components/ContextMenu';
 import { JumpToLatest } from '../components/JumpToLatest';
 import { Lightbox } from '../components/Lightbox';
+import { DateSeparator } from '../components/DateSeparator';
 import { ChatBubble, type MediaItem } from '../components/ChatBubble';
 import {
   addToOutbox,
@@ -51,6 +52,21 @@ function formatTime(iso: string): string {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return '';
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '';
+  }
+}
+
+function formatDateLabel(isoString: string): string {
+  try {
+    const d = new Date(isoString);
+    if (Number.isNaN(d.getTime())) return '';
+    const now = new Date();
+    if (d.toDateString() === now.toDateString()) return 'Today';
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   } catch {
     return '';
   }
@@ -337,7 +353,7 @@ export function ChatScreen({ currentUser, accessToken, onOpenProfile, onToggleTh
   }, [partnerUsername]);
 
   // Context menu actions
-  const handleContextReact = useCallback((_messageId: string, _emoji: string) => {
+  const handleContextReact = useCallback(() => {
     setStatusNotice('Reactions require a backend database schema update (Backend Gap).');
   }, []);
 
@@ -361,11 +377,11 @@ export function ChatScreen({ currentUser, accessToken, onOpenProfile, onToggleTh
     }
   }, [messages]);
 
-  const handleContextForward = useCallback((_messageId: string) => {
+  const handleContextForward = useCallback(() => {
     setStatusNotice('Forwarding requires a backend database schema update (Backend Gap).');
   }, []);
 
-  const handleContextDelete = useCallback((_messageId: string) => {
+  const handleContextDelete = useCallback(() => {
     setStatusNotice('Message deleted locally from browser session.');
   }, []);
 
@@ -442,7 +458,7 @@ export function ChatScreen({ currentUser, accessToken, onOpenProfile, onToggleTh
               color: 'var(--text-secondary, #a0a0b0)',
               fontSize: 12,
               display: 'flex',
-              justify: 'space-between',
+              justifyContent: 'space-between',
               alignItems: 'center',
               borderBottom: '1px solid var(--border-subtle, rgba(255,255,255,0.06))',
             }}
@@ -481,18 +497,24 @@ export function ChatScreen({ currentUser, accessToken, onOpenProfile, onToggleTh
               const prevMsg = index > 0 ? filteredMessages[index - 1] : null;
               const prevSameSender = prevMsg ? prevMsg.sender_username === msg.sender_username : false;
 
+              const msgDateLabel = formatDateLabel(msg.created_at);
+              const prevDateLabel = prevMsg ? formatDateLabel(prevMsg.created_at) : '';
+              const showDateSeparator = Boolean(msgDateLabel && msgDateLabel !== prevDateLabel);
+
               return (
-                <ChatBubble
-                  key={msg.client_id || msg.id || index}
-                  id={msg.id || msg.client_id}
-                  text={msg.text}
-                  timestamp={formatTime(msg.created_at)}
-                  isSent={isSent}
-                  status={msg.status}
-                  searchQuery={query}
-                  prevSameSender={prevSameSender}
-                  onOpenContextMenu={(id) => setContextMenuMessageId(id)}
-                />
+                <div key={msg.client_id || msg.id || index} style={{ display: 'contents' }}>
+                  {showDateSeparator && <DateSeparator date={msgDateLabel} />}
+                  <ChatBubble
+                    id={msg.id || msg.client_id}
+                    text={msg.text}
+                    timestamp={formatTime(msg.created_at)}
+                    isSent={isSent}
+                    status={msg.status}
+                    searchQuery={query}
+                    prevSameSender={prevSameSender && !showDateSeparator}
+                    onOpenContextMenu={(id) => setContextMenuMessageId(id)}
+                  />
+                </div>
               );
             })
           )}

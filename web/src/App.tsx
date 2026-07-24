@@ -29,10 +29,14 @@ export function App() {
 
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [showProfile, setShowProfile] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('chit_chat_theme');
+    return saved === 'light' || saved === 'dark' ? saved : 'dark';
+  });
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('chit_chat_theme', theme);
   }, [theme]);
 
   const toggleTheme = () => {

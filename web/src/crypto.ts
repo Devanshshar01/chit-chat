@@ -2,8 +2,8 @@ import { authFetch } from './api/client';
 import { getCryptoKey, setCryptoKey } from './db';
 
 // Helper utilities for ArrayBuffer <-> Base64
-export function bufferToBase64(buf: ArrayBuffer): string {
-  const bytes = new Uint8Array(buf);
+export function bufferToBase64(buf: ArrayBufferLike): string {
+  const bytes = new Uint8Array(buf as ArrayBuffer);
   let binary = '';
   for (let i = 0; i < bytes.byteLength; i++) {
     binary += String.fromCharCode(bytes[i]);
@@ -17,15 +17,15 @@ export function base64ToBuffer(b64: string): ArrayBuffer {
   for (let i = 0; i < binary.length; i++) {
     bytes[i] = binary.charCodeAt(i);
   }
-  return bytes.buffer;
+  return bytes.buffer as ArrayBuffer;
 }
 
 export function textToBuffer(text: string): Uint8Array {
   return new TextEncoder().encode(text);
 }
 
-export function bufferToText(buf: ArrayBuffer): string {
-  return new TextDecoder().decode(buf);
+export function bufferToText(buf: ArrayBufferLike): string {
+  return new TextDecoder().decode(buf as unknown as BufferSource);
 }
 
 // Generate symmetric AES-GCM key
@@ -46,9 +46,9 @@ export async function encryptAESGCM(
   const encoded = textToBuffer(plaintext);
 
   const ciphertextBuf = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
+    { name: 'AES-GCM', iv: iv as unknown as BufferSource },
     key,
-    encoded
+    encoded as unknown as BufferSource
   );
 
   return {
@@ -67,9 +67,9 @@ export async function decryptAESGCM(
   const ciphertextBuf = base64ToBuffer(ciphertextB64);
 
   const decryptedBuf = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv },
+    { name: 'AES-GCM', iv: iv as unknown as BufferSource },
     key,
-    ciphertextBuf
+    ciphertextBuf as unknown as BufferSource
   );
 
   return bufferToText(decryptedBuf);
